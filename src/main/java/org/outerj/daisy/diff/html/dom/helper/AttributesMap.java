@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.xml.sax.Attributes;
 /**
  * Map is used to store DOM tag attribute names and values. 
@@ -268,7 +269,13 @@ public class AttributesMap extends HashMap<String, String> {
 		//checking classes
 		Arrays.sort(set1);
 		Arrays.sort(set2);
-		return Arrays.equals(set1, set2);
+		// need for table cells: the same table sells can have different styles like height_40 and height_43
+		for (int i = 0; i < set1.length; i++) {
+			if (StringUtils.getLevenshteinDistance(set1[i], set2[i]) > 3) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**

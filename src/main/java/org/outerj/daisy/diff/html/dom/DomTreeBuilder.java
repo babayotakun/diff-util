@@ -32,7 +32,7 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
     private boolean bodyStarted = false;
     private boolean bodyEnded = false;
     private boolean splitByWords = false;
-    private boolean addSeparators = false;
+    private boolean addSeparators = true;
 
     private boolean whiteSpaceBeforeThis = false;
 
@@ -150,7 +150,10 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
         if (splitByWords) {
             for (int i = start; i < start + length; i++) {
                 char c = ch[i];
-                if (isDelimiter(c)) {
+                // Do not split numbers like 45,6 and 42.11
+                if (i > 0 && i < start + length - 1 && isPartOfNumber(c, ch[i - 1], ch[i + 1])) {
+                    newWord.append(c);
+                } else if (isDelimiter(c)) {
                     endWord();
                     if (WhiteSpaceNode.isWhiteSpace(c) && numberOfActivePreTags == 0) {
                         if (lastSibling != null)
@@ -212,6 +215,10 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
         textNodes.add(new SeparatingNode(currentParent));
     }
 
+    private static boolean isPartOfNumber(char c, char prev, char next) {
+        return Character.isDigit(prev) && Character.isDigit(next) && (c == '.' || c == ',');
+    }
+
     public static boolean isDelimiter(char c) {
         if (WhiteSpaceNode.isWhiteSpace(c))
             return true;
@@ -234,10 +241,10 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
             case '(':
             case ')':
             case '&':
-            case '|':
+            //case '|':
             case '\\':
-            case '-':
-            case '_':
+            //case '-':
+            //case '_':
             case '+':
             case '*':
             case ':':

@@ -17,7 +17,6 @@ package org.outerj.daisy.diff.html.dom;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.outerj.daisy.diff.html.modification.Modification;
 import org.outerj.daisy.diff.html.modification.ModificationType;
 
@@ -27,8 +26,15 @@ import org.outerj.daisy.diff.html.modification.ModificationType;
 public class TextNode extends Node implements Cloneable {
 
     private String s;
-
     private Modification modification;
+
+    public TextNode(TagNode parent) {
+        super(parent);
+    }
+
+    public TextNode(TagNode parent, Node oldChild) {
+        super(parent, oldChild);
+    }
 
     public TextNode(TagNode parent, String s) {
         super(parent);

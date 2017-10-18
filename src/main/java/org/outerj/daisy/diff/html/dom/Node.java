@@ -47,6 +47,22 @@ public abstract class Node {
     }
 
     /**
+     * Create new child in the given parent, replacing old child.
+     * @param parent
+     * @param oldChild
+     */
+    public Node(TagNode parent, Node oldChild) {
+        this.parent = parent;
+        if (parent != null) {
+            parent.replaceChildWithIndex(this, oldChild);
+            this.root = parent.getRoot();
+        } else if (this instanceof TagNode) {
+            this.root = (TagNode) this;
+        }
+
+    }
+
+    /**
      * @return the parent itself (NOT a copy!)
      */
     public TagNode getParent() {

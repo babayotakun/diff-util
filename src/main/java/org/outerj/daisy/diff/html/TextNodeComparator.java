@@ -15,6 +15,7 @@
  */
 package org.outerj.daisy.diff.html;
 
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -25,6 +26,7 @@ import org.outerj.daisy.diff.html.ancestor.AncestorComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparatorResult;
 import org.outerj.daisy.diff.html.dom.BodyNode;
 import org.outerj.daisy.diff.html.dom.DomTree;
+import org.outerj.daisy.diff.html.dom.HiddenNoteNode;
 import org.outerj.daisy.diff.html.dom.Node;
 import org.outerj.daisy.diff.html.dom.TagNode;
 import org.outerj.daisy.diff.html.dom.TextNode;
@@ -333,23 +335,23 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
                 } else {
                     // The difference is in the parent, so compare them
                     // now THIS is tricky
-                    /*double distancePrev = deletedNodes
+                    double distancePrev = deletedNodes
                         .get(0)
                         .getParent()
                         .getMatchRatio(prevResult.getLastCommonParent());
                     double distanceNext = deletedNodes
                         .get(deletedNodes.size() - 1)
                         .getParent()
-                        .getMatchRatio(nextResult.getLastCommonParent());*/
-                    prevResult.setLastCommonParentDepth(prevResult.getLastCommonParentDepth() + 1);
+                        .getMatchRatio(nextResult.getLastCommonParent());
+                    //nextResult.setLastCommonParentDepth(nextResult.getLastCommonParentDepth() + 1);
 
-                    /*if (distancePrev <= distanceNext) {
+                    if (distancePrev <= distanceNext) {
                         // insert after the previous node
                         prevResult.setLastCommonParentDepth(prevResult.getLastCommonParentDepth() + 1);
                     } else {
                         // insert before the next node
                         nextResult.setLastCommonParentDepth(nextResult.getLastCommonParentDepth() + 1);
-                    }*/
+                    }
                 }
 
             }
@@ -377,8 +379,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
                 }
                 nextLeaf = deletedNodes.remove(deletedNodes.size() - 1).copyTree();
                 nextLeaf.setParent(nextResult.getLastCommonParent());
-                nextResult.getLastCommonParent().addChild(
-                    nextResult.getIndexInLastCommonParent(), nextLeaf);
+                nextResult.getLastCommonParent().addChild(nextResult.getIndexInLastCommonParent(), nextLeaf);
             } else
                 throw new IllegalStateException();
 
@@ -388,6 +389,9 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
     }
 
     private List<Node> getDeletedNodes(TextNodeComparator oldComp, int nodeNumber) {
+        if (oldComp.getTextNode(nodeNumber) instanceof HiddenNoteNode) {
+            return Lists.newArrayList(oldComp.getTextNode(nodeNumber));
+        }
         return oldComp.getTextNode(nodeNumber).getParent().getParent().getMinimalDeletedSet(deletedID);
     }
 

@@ -15,6 +15,7 @@
  */
 package org.outerj.daisy.diff.html;
 
+import org.outerj.daisy.diff.html.dom.HiddenNoteNode;
 import org.outerj.daisy.diff.html.dom.ImageNode;
 import org.outerj.daisy.diff.html.dom.Node;
 import org.outerj.daisy.diff.html.dom.SeparatingNode;
@@ -77,6 +78,24 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 	conflictStarted = false;
                 }
                 generateOutput(((TagNode) child));
+            } else if (child instanceof HiddenNoteNode) {
+                TagNode realChild = ((HiddenNoteNode) child).getRealTagNode();
+                Modification mod = ((HiddenNoteNode) child).getModification();
+                String oldClassAttr = realChild.getAttributes().getValue("class");
+                if (mod.getOutputType() == ModificationType.ADDED) {
+                    AttributesImpl newAttr = new AttributesImpl();
+                    newAttr.addAttribute("", "class", "class", "CDATA",
+                        oldClassAttr + " diff-note-added");
+                    realChild.setAttributes(newAttr);
+                } else {
+                    AttributesImpl newAttr = new AttributesImpl();
+                    newAttr.addAttribute("", "class", "class", "CDATA",
+                        oldClassAttr + " diff-note-removed");
+                    realChild.setAttributes(newAttr);
+                }
+                realChild.expandWhiteSpace();
+                generateOutput(realChild);
+
             } else if (child instanceof TextNode) {
                 TextNode textChild = (TextNode) child;
                 Modification mod = textChild.getModification();

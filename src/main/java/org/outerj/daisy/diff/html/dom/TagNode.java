@@ -32,7 +32,7 @@ public class TagNode extends Node implements Iterable<Node> {
 
     private String qName;
 
-    private final Attributes attributes;
+    private Attributes attributes;
 
     /**
      * Attributes objects are unmodifiable and {@link #attributes} is final, so we can usefully cache the
@@ -87,6 +87,11 @@ public class TagNode extends Node implements Iterable<Node> {
     public int getIndexOf(Node child) {
         return children.indexOf(child);
     }
+
+    public void replaceChildWithIndex(Node newChild, Node oldChild) {
+        int oldIndex = getIndexOf(oldChild);
+        children.set(oldIndex, newChild);
+    }
     
     /**
      * Inserts provided node in the collection of children at the specified index 
@@ -134,6 +139,10 @@ public class TagNode extends Node implements Iterable<Node> {
 
     public Attributes getAttributes() {
         return attributes;
+    }
+
+    public void setAttributes(Attributes attributes) {
+        this.attributes = attributes;
     }
 
     /**
@@ -230,6 +239,7 @@ public class TagNode extends Node implements Iterable<Node> {
     		TagNode otherNode = (TagNode) another;
     		if (this.getQName().equalsIgnoreCase(otherNode.getQName())) {
     			result = hasSameAttributes(otherNode.getAttributes());
+                //return true;
     		}
     	}
 		return result;
@@ -305,11 +315,13 @@ public class TagNode extends Node implements Iterable<Node> {
         boolean hasNotDeletedDescendant = false;
 
         for (Node child : this) {//check if kids are in the deleted set
-            List<Node> childrenChildren = child.getMinimalDeletedSet(id);
-            nodes.addAll(childrenChildren);
-            if (!hasNotDeletedDescendant && !(childrenChildren.size() == 1 && childrenChildren.contains(child))) {
-                // This child is not entirely deleted
-                hasNotDeletedDescendant = true;
+            if (!(child instanceof HiddenNoteNode)) {
+                List<Node> childrenChildren = child.getMinimalDeletedSet(id);
+                nodes.addAll(childrenChildren);
+                if (!hasNotDeletedDescendant && !(childrenChildren.size() == 1 && childrenChildren.contains(child))) {
+                    // This child is not entirely deleted
+                    hasNotDeletedDescendant = true;
+                }
             }
         }
         //if all kids are in the deleted set - remove them and put this instead
