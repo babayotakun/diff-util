@@ -243,7 +243,7 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
             case '&':
             //case '|':
             case '\\':
-            //case '-':
+            case '-':
             //case '_':
             case '+':
             case '*':
