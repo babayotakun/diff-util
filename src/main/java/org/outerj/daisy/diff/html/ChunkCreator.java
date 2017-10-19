@@ -3,8 +3,7 @@ package org.outerj.daisy.diff.html;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.outerj.daisy.diff.html.dom.TextNode;
@@ -14,9 +13,8 @@ import org.outerj.daisy.diff.html.dom.TextNodePreprocessor;
  * Created by d.kalach on 6/26/17.
  */
 public class ChunkCreator {
-
-    private final SortedMap<String, List<TextNode>> segmentsLeft;
-    private final SortedMap<String, List<TextNode>> segmentsRight;
+    private final List<Pair<String, List<TextNode>>> segmentsLeft;
+    private final List<Pair<String, List<TextNode>>> segmentsRight;
 
     public ChunkCreator(TextNodeComparator leftComparator, TextNodeComparator rightComparator) {
         TextNodePreprocessor preprocessorLeft = new TextNodePreprocessor(leftComparator.getBodyNode(), leftComparator.getTextNodes());
@@ -26,36 +24,36 @@ public class ChunkCreator {
     }
 
     public Collection<Pair<List<TextNode>, List<TextNode>>> getChunks(int maxChunkSize) {
-        return reduceToChunks(merge().values(), maxChunkSize);
+        return reduceToChunks(merge(), maxChunkSize);
     }
 
-    private SortedMap<String, Pair<List<TextNode>, List<TextNode>>> merge() {
+    private Collection<Pair<List<TextNode>, List<TextNode>>> merge() {
         List<TextNode> currentLeft = new ArrayList<>();
         List<TextNode> currentRight = new ArrayList<>();
-        SortedMap<String, Pair<List<TextNode>, List<TextNode>>> result = new TreeMap<>();
-        String prevSegment = segmentsLeft.firstKey();
-        boolean firstSkipped = false;
-        for (String segmentId : segmentsLeft.keySet()) {
-            // skip first one
-            if (!firstSkipped) {
-                firstSkipped = true;
-                continue;
-            }
+        List<Pair<List<TextNode>, List<TextNode>>> result = new ArrayList<>();
 
-            if (segmentsRight.containsKey(segmentId)) {
-                segmentsRight.subMap(prevSegment, segmentId).values().forEach(currentRight::addAll);
-                segmentsLeft.subMap(prevSegment, segmentId).values().forEach(currentLeft::addAll);
-                result.put(prevSegment, new ImmutablePair<>(currentLeft, currentRight));
-                prevSegment = segmentId;
+        List<String> leftSegmentIds = segmentsLeft.stream().map(Pair::getLeft).collect(Collectors.toList());
+        List<String> rightSegmentIds = segmentsRight.stream().map(Pair::getLeft).collect(Collectors.toList());
+
+        int lastLeftIndex = 0;
+        int lastRightIndex = 0;
+        for (int leftIndex = 0; leftIndex < leftSegmentIds.size(); leftIndex++) {
+            int rightIndex = rightSegmentIds.indexOf(leftSegmentIds.get(leftIndex));
+            if (rightIndex > -1) {
+                segmentsRight.subList(lastRightIndex, rightIndex).stream().map(Pair::getRight).forEach(currentRight::addAll);
+                segmentsLeft.subList(lastLeftIndex, leftIndex).stream().map(Pair::getRight).forEach(currentLeft::addAll);
+                result.add(new ImmutablePair<>(currentLeft, currentRight));
                 currentLeft = new ArrayList<>();
                 currentRight = new ArrayList<>();
+                lastLeftIndex = leftIndex;
+                lastRightIndex = rightIndex;
             }
         }
         currentLeft = new ArrayList<>();
         currentRight = new ArrayList<>();
-        segmentsRight.tailMap(prevSegment).values().forEach(currentRight::addAll);
-        segmentsLeft.tailMap(prevSegment).values().forEach(currentLeft::addAll);
-        result.put(prevSegment, new ImmutablePair<>(currentLeft, currentRight));
+        segmentsRight.subList(lastRightIndex, rightSegmentIds.size()).stream().map(Pair::getRight).forEach(currentRight::addAll);
+        segmentsLeft.subList(lastLeftIndex, leftSegmentIds.size()).stream().map(Pair::getRight).forEach(currentLeft::addAll);
+        result.add(new ImmutablePair<>(currentLeft, currentRight));
         return result;
     }
 

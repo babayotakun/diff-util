@@ -4,9 +4,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Created by d.kalach on 6/22/17.
@@ -18,7 +18,7 @@ public class TextNodePreprocessor {
     private static final int NEXT_NODES_IN_SEGMENT_DEFINITION = 5;
     private BodyNode bodyNode;
     private List<TextNode> textNodes;
-    private SortedMap<String, List<TextNode>> segments = new TreeMap<>();
+    private List<Pair<String, List<TextNode>>> segments = new ArrayList<>();
 
 
     public TextNodePreprocessor(BodyNode bodyNode, List<TextNode> textNodes) {
@@ -26,7 +26,7 @@ public class TextNodePreprocessor {
         this.textNodes = textNodes;
     }
 
-    public SortedMap<String, List<TextNode>> collectSegmentNodes() {
+    public List<Pair<String, List<TextNode>>> collectSegmentNodes() {
         collectSegmentNodes(bodyNode);
         return segments;
     }
@@ -101,7 +101,7 @@ public class TextNodePreprocessor {
                 TagNode currentTag = (TagNode) current;
                 String segmentId = getSegmentId(currentTag);
                 if (segmentId != null) {
-                    segments.put(currentSegmentId, currentTextNodes);
+                    segments.add(new ImmutablePair<>(currentSegmentId, currentTextNodes));
                     currentSegmentId = segmentId;
                     currentTextNodes = new ArrayList<>();
                 } else if (!Objects.equals(DISPLAY_NONE_CLASS, currentTag.getAttributes().getValue(CLASS_ATTRIBUTE))) {
