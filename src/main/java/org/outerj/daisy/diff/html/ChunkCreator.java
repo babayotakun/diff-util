@@ -39,7 +39,7 @@ public class ChunkCreator {
         int lastRightIndex = 0;
         for (int leftIndex = 0; leftIndex < leftSegmentIds.size(); leftIndex++) {
             int rightIndex = rightSegmentIds.indexOf(leftSegmentIds.get(leftIndex));
-            if (rightIndex > -1) {
+            if (rightIndex > -1 && lastRightIndex < rightIndex) {
                 segmentsRight.subList(lastRightIndex, rightIndex).stream().map(Pair::getRight).forEach(currentRight::addAll);
                 segmentsLeft.subList(lastLeftIndex, leftIndex).stream().map(Pair::getRight).forEach(currentLeft::addAll);
                 result.add(new ImmutablePair<>(currentLeft, currentRight));
