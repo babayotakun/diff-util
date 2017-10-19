@@ -28,39 +28,27 @@ import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 public class DaisyDiff {
-    private final DiffMode mode;
-    private final int chunkSize;
-    private final boolean forcedChunks;
+    private static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
 
-    public DaisyDiff(DiffMode mode, int chunkSize, boolean forcedChunks) {
-        this.mode = mode;
-        this.chunkSize = chunkSize;
-        this.forcedChunks = forcedChunks;
-    }
-
-    public void diffHTML(InputSource oldSource, InputSource newSource, ContentHandler consumer, String prefix, Locale locale)
+    public void diffHTML(InputSource oldSource, InputSource newSource, ContentHandler consumer, String prefix, DiffMode mode, int chunkSize)
         throws SAXException, IOException {
 
         DomTreeBuilder oldHandler = new DomTreeBuilder(true);
         XMLReader xr1 = XMLReaderFactory.createXMLReader();
         xr1.setContentHandler(oldHandler);
         xr1.parse(oldSource);
-        TextNodeComparator leftComparator = new TextNodeComparator(oldHandler, locale);
+        TextNodeComparator leftComparator = new TextNodeComparator(oldHandler, DEFAULT_LOCALE);
 
         DomTreeBuilder newHandler = new DomTreeBuilder(true);
         XMLReader xr2 = XMLReaderFactory.createXMLReader();
         xr2.setContentHandler(newHandler);
         xr2.parse(newSource);
 
-        TextNodeComparator rightComparator = new TextNodeComparator(newHandler, locale);
+        TextNodeComparator rightComparator = new TextNodeComparator(newHandler, DEFAULT_LOCALE);
 
         HtmlSaxDiffOutput output = new HtmlSaxDiffOutput(consumer, prefix);
         HTMLDiffer differ = new HTMLDiffer(output);
 
-        DiffMode currentMode = mode;
-        if (forcedChunks && (leftComparator.getTextNodes().size() > chunkSize || rightComparator.getTextNodes().size() > chunkSize)) {
-            currentMode = DiffMode.CHUNKED;
-        }
-        differ.diff(leftComparator, rightComparator, currentMode, chunkSize);
+        differ.diff(leftComparator, rightComparator, mode, chunkSize);
     }
 }
