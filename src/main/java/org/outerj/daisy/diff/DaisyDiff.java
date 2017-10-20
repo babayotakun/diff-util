@@ -30,7 +30,7 @@ import org.xml.sax.helpers.XMLReaderFactory;
 public class DaisyDiff {
     private static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
 
-    public void diffHTML(InputSource oldSource, InputSource newSource, ContentHandler consumer, String prefix, DiffMode mode, int chunkSize)
+    public int diffHTML(InputSource oldSource, InputSource newSource, ContentHandler consumer, String prefix, DiffMode mode, int chunkSize)
         throws SAXException, IOException {
 
         DomTreeBuilder oldHandler = new DomTreeBuilder(true);
@@ -49,6 +49,6 @@ public class DaisyDiff {
         HtmlSaxDiffOutput output = new HtmlSaxDiffOutput(consumer, prefix);
         HTMLDiffer differ = new HTMLDiffer(output);
 
-        differ.diff(leftComparator, rightComparator, mode, chunkSize);
+        return differ.diff(leftComparator, rightComparator, mode, chunkSize);
     }
 }

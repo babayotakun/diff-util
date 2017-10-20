@@ -42,7 +42,7 @@ public class HTMLDiffer implements Differ {
     /**
      * {@inheritDoc}
      */
-    public void diff(TextNodeComparator leftComparator, TextNodeComparator rightComparator, DiffMode mode, int chunkSize) throws SAXException {
+    public int diff(TextNodeComparator leftComparator, TextNodeComparator rightComparator, DiffMode mode, int chunkSize) throws SAXException {
         long findDiffStart = System.currentTimeMillis();
         LOGGER.info("Diff started in " + mode.name() + " mode");
         int diffCount;
@@ -65,6 +65,7 @@ public class HTMLDiffer implements Differ {
 
         rightComparator.expandWhiteSpace();
         output.generateOutput(rightComparator.getBodyNode());
+        return diffCount;
     }
 
     private int chunkedDiff(TextNodeComparator leftComparator, TextNodeComparator rightComparator, int chunkSize) {
@@ -114,7 +115,7 @@ public class HTMLDiffer implements Differ {
 
             currentIndexLeft = d.leftEnd();
             currentIndexRight = d.rightEnd();
-            LOGGER.info("Iteration complete in " + (System.currentTimeMillis() - iterationStart) + " ms; number " + counter++);
+            //LOGGER.info("Iteration complete in " + (System.currentTimeMillis() - iterationStart) + " ms; number " + counter++);
         }
         if (currentIndexLeft < leftComparator.getRangeCount()) {
             rightComparator.handlePossibleChangedPart(currentIndexLeft, leftComparator.getRangeCount(),

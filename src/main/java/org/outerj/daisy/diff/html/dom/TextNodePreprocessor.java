@@ -32,8 +32,12 @@ public class TextNodePreprocessor {
     }
 
     public static void removeUnprocessableNodes(TagNode parent, List<TextNode> textNodes) {
+        long start = System.currentTimeMillis();
         removeUnprocessableNodesRecursive(parent, textNodes);
+        System.out.println("Remove unprocessable nodes in " + (System.currentTimeMillis() - start) + " ms");
+        long start2 = System.currentTimeMillis();
         markAllHiddenNotesAsAlwaysDifferent(parent, textNodes);
+        System.out.println("Mark hidden nodes in " + (System.currentTimeMillis() - start2) + " ms");
     }
 
     private static void removeUnprocessableNodesRecursive(TagNode parent, List<TextNode> textNodes) {
@@ -90,7 +94,7 @@ public class TextNodePreprocessor {
         }
     }
 
-    private String currentSegmentId = "0";
+    private String currentContentsLabel = "0";
     private List<TextNode> currentTextNodes = new ArrayList<>();
 
     private void collectSegmentNodes(TagNode parent) {
@@ -99,10 +103,10 @@ public class TextNodePreprocessor {
             Node current = iterator.next();
             if (current instanceof TagNode) {
                 TagNode currentTag = (TagNode) current;
-                String segmentId = getSegmentId(currentTag);
-                if (segmentId != null) {
-                    segments.add(new ImmutablePair<>(currentSegmentId, currentTextNodes));
-                    currentSegmentId = segmentId;
+                String contentsLabel = getContentsLabel(currentTag);
+                if (contentsLabel != null) {
+                    segments.add(new ImmutablePair<>(currentContentsLabel, currentTextNodes));
+                    currentContentsLabel = contentsLabel;
                     currentTextNodes = new ArrayList<>();
                 } else if (!Objects.equals(DISPLAY_NONE_CLASS, currentTag.getAttributes().getValue(CLASS_ATTRIBUTE))) {
                     collectSegmentNodes(currentTag);
@@ -113,12 +117,19 @@ public class TextNodePreprocessor {
         }
     }
 
-    private String getSegmentId(TagNode tag) {
-        if (tag.getNbChildren() == NEXT_NODES_IN_SEGMENT_DEFINITION
+    private String getContentsLabel(TagNode tag) {
+        if (tag.getNbChildren() >= NEXT_NODES_IN_SEGMENT_DEFINITION
             && isTextNodeContainingText(tag.getChild(0), "{")
-            // Cyrillic M !!!
-            && isTextNodeContainingText(tag.getChild(1), "М")) {
-            return ((TextNode) tag.getChild(3)).getText();
+            && isTextNodeContainingText(tag.getChild(1), "ОГЛ_В")) {
+            StringBuilder id = new StringBuilder();
+            for (Node child : tag) {
+                if (child instanceof TextNode) {
+                    id.append(((TextNode) child).getText());
+                } else {
+                    return null;
+                }
+            }
+            return id.toString();
         }
         return null;
     }
