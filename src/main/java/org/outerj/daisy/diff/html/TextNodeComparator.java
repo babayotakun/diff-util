@@ -55,7 +55,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         this.locale = locale;
         textNodes = tree.getTextNodes();
         bodyNode = tree.getBodyNode();
-        TextNodePreprocessor.removeUnprocessableNodes(getBodyNode(), textNodes);
+        textNodes = TextNodePreprocessor.removeUnprocessableNodes(getBodyNode(), textNodes);
     }
 
     public BodyNode getBodyNode() {
