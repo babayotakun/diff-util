@@ -35,6 +35,7 @@ public class TextNodePreprocessor {
 
     public List<Pair<String, List<TextNode>>> collectSegmentNodes() {
         collectSegmentNodes(bodyNode);
+        segments.add(new ImmutablePair<>(currentContentsLabel, currentTextNodes));
         return segments;
     }
 
@@ -83,10 +84,10 @@ public class TextNodePreprocessor {
                 TagNode currentTag = (TagNode) current;
                 String classAttr = currentTag.getAttributes().getValue(CLASS_ATTRIBUTE);
                 if (classAttr != null && classAttr.contains(HIDDEN_NOTE)) {
-                    Node fakeNode = new HiddenNoteNode(currentTag, parent);
+                    TextNode fakeNode = new HiddenNoteNode(currentTag, parent);
                     deleteAllTextNodesRecursiveWithReplacement(
                         currentTag,
-                        (TextNode) fakeNode,
+                        fakeNode,
                         new AtomicBoolean(true),
                         textNodesToRemove,
                         textNodesToReplace);
@@ -110,7 +111,8 @@ public class TextNodePreprocessor {
                 } else {
                     textNodesToRemove.add((TextNode) child);
                 }
-            } else if (child instanceof TagNode) {
+            } else if (child instanceof TagNode
+                && !Objects.equals(DISPLAY_NONE_CLASS, ((TagNode) child).getAttributes().getValue(CLASS_ATTRIBUTE))) {
                 deleteAllTextNodesRecursiveWithReplacement((TagNode) child, replacement, onlyOnceMarker, textNodesToRemove, textNodesToReplace);
             }
         }
