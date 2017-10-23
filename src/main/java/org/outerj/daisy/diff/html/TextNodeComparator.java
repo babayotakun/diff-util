@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import org.eclipse.compare.rangedifferencer.IRangeComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparatorResult;
@@ -392,7 +393,8 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         if (oldComp.getTextNode(nodeNumber) instanceof HiddenNoteNode) {
             return Lists.newArrayList(oldComp.getTextNode(nodeNumber));
         }
-        return oldComp.getTextNode(nodeNumber).getParent().getParent().getMinimalDeletedSet(deletedID);
+        TagNode firstParent = oldComp.getTextNode(nodeNumber).getParent();
+        return Optional.ofNullable(firstParent.getParent()).orElse(firstParent).getMinimalDeletedSet(deletedID);
     }
 
     /**
