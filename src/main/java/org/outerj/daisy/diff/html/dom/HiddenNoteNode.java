@@ -15,6 +15,10 @@ public class HiddenNoteNode extends TextNode {
         root = wrapper;
     }
 
+    public boolean equals(Object other) {
+        return other == this;
+    }
+
     @Override
     public boolean isSameText(Object other) {
         return false;

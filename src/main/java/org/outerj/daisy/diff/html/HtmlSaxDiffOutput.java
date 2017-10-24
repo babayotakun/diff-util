@@ -34,6 +34,7 @@ import org.xml.sax.helpers.AttributesImpl;
 public class HtmlSaxDiffOutput implements DiffOutput {
 
     private ContentHandler handler;
+    private boolean forcedIdForTheNextDifference = false;
 
     private String prefix;
 
@@ -94,6 +95,7 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                     realChild.setAttributes(newAttr);
                 }
                 realChild.expandWhiteSpace();
+                forcedIdForTheNextDifference = true;
                 generateOutput(realChild);
 
             } else if (child instanceof TextNode) {
@@ -120,6 +122,7 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                     AttributesImpl attrs = new AttributesImpl();
                     attrs.addAttribute("", "class", "class", "CDATA",
                             "diff-html-added");
+                    setFirstOfIdIfNeeded(mod);
                     if (mod.isFirstOfID()) {
                         attrs.addAttribute("", "id", "id", "CDATA", mod
                                 .getOutputType()
@@ -135,6 +138,7 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                     AttributesImpl attrs = new AttributesImpl();
                     attrs.addAttribute("", "class", "class", "CDATA",
                             "diff-html-changed");
+                    setFirstOfIdIfNeeded(mod);
                     if (mod.isFirstOfID()) {
                         attrs.addAttribute("", "id", "id", "CDATA", mod
                                 .getOutputType()
@@ -151,7 +155,8 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 	AttributesImpl attrs = new AttributesImpl();
                 	attrs.addAttribute("", "class", "class", "CDATA",
                 	"diff-html-removed");
-                	if (mod.isFirstOfID()) {
+                    setFirstOfIdIfNeeded(mod);
+                    if (mod.isFirstOfID()) {
                 		attrs.addAttribute("", "id", "id", "CDATA", mod
                 				.getOutputType()
                 				+ "-" + prefix + "-" + mod.getID());
@@ -165,6 +170,7 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                     AttributesImpl attrs = new AttributesImpl();
                     attrs.addAttribute("", "class", "class", "CDATA",
                             "diff-html-conflict");
+                    setFirstOfIdIfNeeded(mod);
                     if (mod.isFirstOfID()) {
                         attrs.addAttribute("", "id", "id", "CDATA", mod
                                 .getOutputType()
@@ -205,6 +211,13 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 && !node.getQName().equalsIgnoreCase("body"))
             handler.endElement("", node.getQName(), node.getQName());
 
+    }
+
+    private void setFirstOfIdIfNeeded(Modification mod) {
+        if (forcedIdForTheNextDifference) {
+            mod.setFirstOfID(true);
+            forcedIdForTheNextDifference = false;
+        }
     }
 
     private void writeImage(ImageNode imgNode) throws SAXException {
