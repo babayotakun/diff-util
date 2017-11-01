@@ -23,6 +23,7 @@ public class TextNodePreprocessor {
     private static final String HIDDEN_NOTE = "hidden-note";
     private static final String CLASS_ATTRIBUTE = "class";
     private static final int NEXT_NODES_IN_SEGMENT_DEFINITION = 5;
+    private static final String FAKE_NON_BREAKING_SPACE = "fake-non-breaking-space";
     private BodyNode bodyNode;
     private List<TextNode> textNodes;
     private List<Pair<String, List<TextNode>>> segments = new ArrayList<>();
@@ -62,6 +63,9 @@ public class TextNodePreprocessor {
             if (current instanceof TagNode) {
                 TagNode currentTag = (TagNode) current;
                 String classAttr = currentTag.getAttributes().getValue(CLASS_ATTRIBUTE);
+                if (Objects.equals(FAKE_NON_BREAKING_SPACE, classAttr)) {
+                    new SeparatingNode(currentTag);
+                }
                 if (Objects.equals(DISPLAY_NONE_CLASS, classAttr)) {
                     for (Node child : currentTag) {
                         if (child instanceof TextNode) {

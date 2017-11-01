@@ -208,8 +208,14 @@ public class HtmlSaxDiffOutput implements DiffOutput {
         }
 
         if (!node.getQName().equalsIgnoreCase("img")
-                && !node.getQName().equalsIgnoreCase("body"))
+                && !node.getQName().equalsIgnoreCase("body")) {
+            // Add a fake character to prevent empty elements from collapsing
+            // like <span></span> --> <span/>
+            char[] chars = new char[1];
+            chars[0] = '\r';
+            handler.characters(chars, 0, chars.length);
             handler.endElement("", node.getQName(), node.getQName());
+        }
 
     }
 

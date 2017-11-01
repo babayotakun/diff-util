@@ -15,19 +15,16 @@
  */
 package org.outerj.daisy.diff.html;
 
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import org.eclipse.compare.rangedifferencer.IRangeComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparatorResult;
 import org.outerj.daisy.diff.html.dom.BodyNode;
 import org.outerj.daisy.diff.html.dom.DomTree;
-import org.outerj.daisy.diff.html.dom.HiddenNoteNode;
 import org.outerj.daisy.diff.html.dom.Node;
 import org.outerj.daisy.diff.html.dom.TagNode;
 import org.outerj.daisy.diff.html.dom.TextNode;
@@ -390,11 +387,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
     }
 
     private List<Node> getDeletedNodes(TextNodeComparator oldComp, int nodeNumber) {
-        if (oldComp.getTextNode(nodeNumber) instanceof HiddenNoteNode) {
-            return Lists.newArrayList(oldComp.getTextNode(nodeNumber));
-        }
-        TagNode firstParent = oldComp.getTextNode(nodeNumber).getParent();
-        return Optional.ofNullable(firstParent.getParent()).orElse(firstParent).getMinimalDeletedSet(deletedID);
+        return oldComp.getBodyNode().getMinimalDeletedSet(deletedID);
     }
 
     /**

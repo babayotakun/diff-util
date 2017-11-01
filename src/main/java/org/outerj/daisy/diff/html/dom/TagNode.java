@@ -315,13 +315,11 @@ public class TagNode extends Node implements Iterable<Node> {
         boolean hasNotDeletedDescendant = false;
 
         for (Node child : this) {//check if kids are in the deleted set
-            if (!(child instanceof HiddenNoteNode)) {
-                List<Node> childrenChildren = child.getMinimalDeletedSet(id);
-                nodes.addAll(childrenChildren);
-                if (!hasNotDeletedDescendant && !(childrenChildren.size() == 1 && childrenChildren.contains(child))) {
-                    // This child is not entirely deleted
-                    hasNotDeletedDescendant = true;
-                }
+            List<Node> childrenChildren = child.getMinimalDeletedSet(id);
+            nodes.addAll(childrenChildren);
+            if (!hasNotDeletedDescendant && !(childrenChildren.size() == 1 && childrenChildren.contains(child))) {
+                // This child is not entirely deleted
+                hasNotDeletedDescendant = true;
             }
         }
         //if all kids are in the deleted set - remove them and put this instead

@@ -76,9 +76,11 @@ public class AttributesMap extends HashMap<String, String> {
             if (localValue == null)
                 return false;
             if (!localValue.equals(value)) {
-                if (qName.equals(STYLE_ATTR) && equivalentStyles(value, localValue))
+            	// TODO: should have a better heuristic
+				// Some equal <td> can have different styles.
+                if (qName.equals(STYLE_ATTR))
                     continue;
-                if (qName.equals(CLASS_ATTR) && sameClassSet(value, localValue))
+                if (qName.equals(CLASS_ATTR))
                     continue;
                 return false;
             }
@@ -271,7 +273,7 @@ public class AttributesMap extends HashMap<String, String> {
 		Arrays.sort(set2);
 		// need for table cells: the same table sells can have different styles like height_40 and height_43
 		for (int i = 0; i < set1.length; i++) {
-			if (StringUtils.getLevenshteinDistance(set1[i], set2[i]) > 3) {
+			if (StringUtils.getLevenshteinDistance(set1[i], set2[i]) > 10) {
 				return false;
 			}
 		}
