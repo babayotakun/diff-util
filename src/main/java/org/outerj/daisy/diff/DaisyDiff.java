@@ -15,8 +15,10 @@
  */
 package org.outerj.daisy.diff;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Locale;
+import org.apache.commons.io.IOUtils;
 import org.eclipse.compare.rangedifferencer.HTMLDiffer;
 import org.outerj.daisy.diff.html.HtmlSaxDiffOutput;
 import org.outerj.daisy.diff.html.TextNodeComparator;
@@ -29,6 +31,8 @@ import org.xml.sax.helpers.XMLReaderFactory;
 
 public class DaisyDiff {
     private static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
+    private static final String BODY_OPEN = "<body>";
+    private static final String BODY_CLOSE = "</body>";
 
     public int diffHTML(InputSource oldSource, InputSource newSource, ContentHandler consumer, String prefix, DiffMode mode, int chunkSize)
         throws SAXException, IOException {
@@ -36,12 +40,14 @@ public class DaisyDiff {
         DomTreeBuilder oldHandler = new DomTreeBuilder(true);
         XMLReader xr1 = XMLReaderFactory.createXMLReader();
         xr1.setContentHandler(oldHandler);
+        wrapHtmlWithBodyTagIfNeeded(oldSource);
         xr1.parse(oldSource);
         TextNodeComparator leftComparator = new TextNodeComparator(oldHandler, DEFAULT_LOCALE);
 
         DomTreeBuilder newHandler = new DomTreeBuilder(true);
         XMLReader xr2 = XMLReaderFactory.createXMLReader();
         xr2.setContentHandler(newHandler);
+        wrapHtmlWithBodyTagIfNeeded(newSource);
         xr2.parse(newSource);
 
         TextNodeComparator rightComparator = new TextNodeComparator(newHandler, DEFAULT_LOCALE);
@@ -50,5 +56,13 @@ public class DaisyDiff {
         HTMLDiffer differ = new HTMLDiffer(output);
 
         return differ.diff(leftComparator, rightComparator, mode, chunkSize);
+    }
+
+    private void wrapHtmlWithBodyTagIfNeeded(InputSource source) throws IOException {
+        String docHtml = IOUtils.toString(source.getByteStream());
+        if (!docHtml.startsWith(BODY_OPEN)) {
+            String docHtmlWithBody = BODY_OPEN + docHtml + BODY_CLOSE;
+            source.setByteStream(new ByteArrayInputStream(docHtmlWithBody.getBytes()));
+        }
     }
 }

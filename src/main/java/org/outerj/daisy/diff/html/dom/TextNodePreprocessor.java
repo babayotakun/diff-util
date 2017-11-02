@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
@@ -19,6 +20,7 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 public class TextNodePreprocessor {
     private static final String DISPLAY_NONE_CLASS = "color__800000 display_none";
+    private static final String NOT_VISIBLE_ELEMENT = "not-visible-element";
     private static final Pattern CONTENTS_LABEL = Pattern.compile("\\{ОГЛ_.*=.*_(.*)}");
     private static final String HIDDEN_NOTE = "hidden-note";
     private static final String CLASS_ATTRIBUTE = "class";
@@ -66,7 +68,7 @@ public class TextNodePreprocessor {
                 if (Objects.equals(FAKE_NON_BREAKING_SPACE, classAttr)) {
                     new SeparatingNode(currentTag);
                 }
-                if (Objects.equals(DISPLAY_NONE_CLASS, classAttr)) {
+                if (isHiddenElement(currentTag)) {
                     for (Node child : currentTag) {
                         if (child instanceof TextNode) {
                             textNodesToRemove.add((TextNode) child);
@@ -115,8 +117,7 @@ public class TextNodePreprocessor {
                 } else {
                     textNodesToRemove.add((TextNode) child);
                 }
-            } else if (child instanceof TagNode
-                && !Objects.equals(DISPLAY_NONE_CLASS, ((TagNode) child).getAttributes().getValue(CLASS_ATTRIBUTE))) {
+            } else if (child instanceof TagNode && !isHiddenElement((TagNode) child)) {
                 deleteAllTextNodesRecursiveWithReplacement((TagNode) child, replacement, onlyOnceMarker, textNodesToRemove, textNodesToReplace);
             }
         }
@@ -136,7 +137,7 @@ public class TextNodePreprocessor {
                     segments.add(new ImmutablePair<>(currentContentsLabel, currentTextNodes));
                     currentContentsLabel = contentsLabel;
                     currentTextNodes = new ArrayList<>();
-                } else if (!Objects.equals(DISPLAY_NONE_CLASS, currentTag.getAttributes().getValue(CLASS_ATTRIBUTE))) {
+                } else if (!isHiddenElement(currentTag)) {
                     collectSegmentNodes(currentTag);
                 }
             } else if (current instanceof TextNode) {
@@ -163,6 +164,12 @@ public class TextNodePreprocessor {
             }
         }
         return null;
+    }
+
+    private static boolean isHiddenElement(TagNode tag) {
+        return Optional.ofNullable(tag.getAttributes().getValue(CLASS_ATTRIBUTE))
+            .map(clazz -> DISPLAY_NONE_CLASS.equals(clazz) || NOT_VISIBLE_ELEMENT.equals(clazz))
+            .orElse(false);
     }
 
     private boolean isTextNodeContainingText(Node node, String text) {
