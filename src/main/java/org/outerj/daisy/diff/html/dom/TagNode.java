@@ -27,7 +27,7 @@ import org.outerj.daisy.diff.html.dom.helper.AttributesMap;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
 
-import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isNotVisibleElement;
+import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isHiddenElement;
 
 /**
  * Node that can contain other nodes. Represents an HTML tag.
@@ -314,7 +314,7 @@ public class TagNode extends Node implements Iterable<Node> {
         List<Node> nodes = new ArrayList<Node>();
 
         //no-content tags are never included in the set
-        if (children.size() == 0) {
+        if (children.stream().allMatch(child -> child instanceof TagNode && isHiddenElement((TagNode) child))) {
 			return nodes;
 		}
 
@@ -326,7 +326,7 @@ public class TagNode extends Node implements Iterable<Node> {
             List<Node> childrenChildren = child.getMinimalDeletedSet(id);
             nodes.addAll(childrenChildren);
             // Not visible elements do not stop us from deleting all tag node.
-            boolean notVisibleElementNotAdded = childrenChildren.isEmpty() && child instanceof TagNode && isNotVisibleElement((TagNode) child);
+            boolean notVisibleElementNotAdded = childrenChildren.isEmpty() && child instanceof TagNode && isHiddenElement((TagNode) child);
             boolean singleChildAdded = childrenChildren.size() == 1 && childrenChildren.contains(child);
             if (!hasNotDeletedDescendant && !(singleChildAdded || notVisibleElementNotAdded)) {
                 // This child is not entirely deleted
