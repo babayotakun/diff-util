@@ -3,6 +3,7 @@ package org.outerj.daisy.diff.html.dom;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -59,7 +60,9 @@ public class TextNodePreprocessor {
     }
 
     private static void removeUnprocessableNodesRecursive(TagNode parent, Set<TextNode> textNodesToRemove) {
-        for (Node current : parent) {
+        Iterator<Node> iterator = parent.iterator();
+        while (iterator.hasNext()) {
+            Node current = iterator.next();
             if (current instanceof TagNode) {
                 TagNode currentTag = (TagNode) current;
                 String classAttr = currentTag.getAttributes().getValue(CLASS_ATTRIBUTE);
@@ -159,9 +162,15 @@ public class TextNodePreprocessor {
         return null;
     }
 
-    private static boolean isHiddenElement(TagNode tag) {
+    static boolean isHiddenElement(TagNode tag) {
         return Optional.ofNullable(tag.getAttributes().getValue(CLASS_ATTRIBUTE))
             .map(clazz -> DISPLAY_NONE_CLASS.equals(clazz) || NOT_VISIBLE_ELEMENT.equals(clazz))
+            .orElse(false);
+    }
+
+    static boolean isNotVisibleElement(TagNode tag) {
+        return Optional.ofNullable(tag.getAttributes().getValue(CLASS_ATTRIBUTE))
+            .map(NOT_VISIBLE_ELEMENT::equals)
             .orElse(false);
     }
 

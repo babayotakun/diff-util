@@ -15,12 +15,19 @@
  */
 package org.outerj.daisy.diff.html.dom;
 
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import org.outerj.daisy.diff.html.ancestor.TextOnlyComparator;
 import org.outerj.daisy.diff.html.dom.helper.AttributesMap;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
+
+import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isNotVisibleElement;
 
 /**
  * Node that can contain other nodes. Represents an HTML tag.
@@ -318,7 +325,10 @@ public class TagNode extends Node implements Iterable<Node> {
         for (Node child : this) {//check if kids are in the deleted set
             List<Node> childrenChildren = child.getMinimalDeletedSet(id);
             nodes.addAll(childrenChildren);
-            if (!hasNotDeletedDescendant && !(childrenChildren.size() == 1 && childrenChildren.contains(child))) {
+            // Not visible elements do not stop us from deleting all tag node.
+            boolean notVisibleElementNotAdded = childrenChildren.isEmpty() && child instanceof TagNode && isNotVisibleElement((TagNode) child);
+            boolean singleChildAdded = childrenChildren.size() == 1 && childrenChildren.contains(child);
+            if (!hasNotDeletedDescendant && !(singleChildAdded || notVisibleElementNotAdded)) {
                 // This child is not entirely deleted
                 hasNotDeletedDescendant = true;
             }
