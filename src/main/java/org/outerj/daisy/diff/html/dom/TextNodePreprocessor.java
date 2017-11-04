@@ -3,10 +3,8 @@ package org.outerj.daisy.diff.html.dom;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -19,11 +17,11 @@ import org.apache.commons.lang3.tuple.Pair;
  * Created by d.kalach on 6/22/17.
  */
 public class TextNodePreprocessor {
+    static final String CLASS_ATTRIBUTE = "class";
     private static final String DISPLAY_NONE_CLASS = "color__800000 display_none";
     private static final String NOT_VISIBLE_ELEMENT = "not-visible-element";
     private static final Pattern CONTENTS_LABEL = Pattern.compile("\\{ОГЛ_.*=.*_(.*)}");
     private static final String HIDDEN_NOTE = "hidden-note";
-    private static final String CLASS_ATTRIBUTE = "class";
     private static final int NEXT_NODES_IN_SEGMENT_DEFINITION = 5;
     private static final String FAKE_NON_BREAKING_SPACE = "fake-non-breaking-space";
     private BodyNode bodyNode;
@@ -65,9 +63,6 @@ public class TextNodePreprocessor {
             if (current instanceof TagNode) {
                 TagNode currentTag = (TagNode) current;
                 String classAttr = currentTag.getAttributes().getValue(CLASS_ATTRIBUTE);
-                if (Objects.equals(FAKE_NON_BREAKING_SPACE, classAttr)) {
-                    new SeparatingNode(currentTag);
-                }
                 if (isHiddenElement(currentTag)) {
                     for (Node child : currentTag) {
                         if (child instanceof TextNode) {
@@ -127,9 +122,7 @@ public class TextNodePreprocessor {
     private List<TextNode> currentTextNodes = new ArrayList<>();
 
     private void collectSegmentNodes(TagNode parent) {
-        Iterator<Node> iterator = parent.iterator();
-        while (iterator.hasNext()) {
-            Node current = iterator.next();
+        for (Node current : parent) {
             if (current instanceof TagNode) {
                 TagNode currentTag = (TagNode) current;
                 String contentsLabel = getContentsLabel(currentTag);

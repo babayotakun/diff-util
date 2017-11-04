@@ -40,7 +40,7 @@ import org.outerj.daisy.diff.html.modification.ModificationType;
  */
 public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> {
 
-    private List<TextNode> textNodes = new ArrayList<TextNode>(50);
+    private List<TextNode> textNodes;
 
     private List<Modification> lastModified = new ArrayList<Modification>();
 
@@ -98,14 +98,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         for (int i = start; i < end; i++) {
             Modification mod = new Modification(ModificationType.ADDED, outputFormat);
             mod.setID(newID);
-            if (lastModified.size() > 0) {
-                mod.setPrevious(lastModified.get(0));
-                if (lastModified.get(0).getNext() == null) {
-                    for (Modification lastMod : lastModified) {
-                        lastMod.setNext(mod);
-                    }
-                }
-            }
+            linkPreviousModificationsWithCurrent(mod);
             nextLastModified.add(mod);
             getTextNode(i).setModification(mod);
         }
@@ -126,14 +119,8 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
     }
 
     public boolean rangesEqual(int i1, IRangeComparator rangeComp, int i2) {
-        TextNodeComparator comp;
-        try {
-            comp = (TextNodeComparator) rangeComp;
-        } catch (RuntimeException e) {
-            return false;
-        }
-
-        return getTextNode(i1).isSameText(comp.getTextNode(i2));
+        return rangeComp instanceof TextNodeComparator
+            && getTextNode(i1).isSameText(((TextNodeComparator) rangeComp).getTextNode(i2));
     }
 
     public boolean skipRangeComparison(int arg0, int arg1, IRangeComparator arg2) {
@@ -182,14 +169,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
                     }
                 }
 
-                if (lastModified.size() > 0) {
-                    mod.setPrevious(lastModified.get(0));
-                    if (lastModified.get(0).getNext() == null) {
-                        for (Modification lastMod : lastModified) {
-                            lastMod.setNext(mod);
-                        }
-                    }
-                }
+                linkPreviousModificationsWithCurrent(mod);
                 nextLastModified.add(mod);
 
                 mod.setChanges(result.getChanges());
@@ -215,17 +195,11 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
 
     // used to remove the whitespace between a red and green block
     private boolean whiteAfterLastChangedPart = false;
-
     private long deletedID = 0;
 
     /**
      * Marks the given range as deleted. In the output, the range will be
      * formatted as specified by the parameter anOutputFormat.
-     *
-     * @param start
-     * @param end
-     * @param oldComp
-     * @param before
      */
     public void markAsDeleted(int start, int end, TextNodeComparator oldComp,
                               int before, int after, ModificationType outputFormat) {
@@ -233,25 +207,14 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         if (end <= start)
             return;
 
-        if (before > 0 && getTextNode(before - 1).isWhiteAfter()) {
-            whiteAfterLastChangedPart = true;
-        } else {
-            whiteAfterLastChangedPart = false;
-        }
+        whiteAfterLastChangedPart = before > 0 && getTextNode(before - 1).isWhiteAfter();
 
         List<Modification> nextLastModified = new ArrayList<Modification>();
 
         for (int i = start; i < end; i++) {
             Modification mod = new Modification(ModificationType.REMOVED, outputFormat);
             mod.setID(deletedID);
-            if (lastModified.size() > 0) {
-                mod.setPrevious(lastModified.get(0));
-                if (lastModified.get(0).getNext() == null) {
-                    for (Modification lastMod : lastModified) {
-                        lastMod.setNext(mod);
-                    }
-                }
-            }
+            linkPreviousModificationsWithCurrent(mod);
             nextLastModified.add(mod);
 
             // oldComp is used here because we're going to move its deleted
@@ -412,52 +375,14 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         return textNodes.iterator();
     }
 
-    /**
-     * Used for combining multiple comparators in order to create a single
-     * output document. The IDs must be successive along the different
-     * comparators.
-     *
-     * @param aDeletedID
-     */
-    public void setStartDeletedID(long aDeletedID) {
-        deletedID = aDeletedID;
-    }
-
-    /**
-     * Used for combining multiple comparators in order to create a single
-     * output document. The IDs must be successive along the different
-     * comparators.
-     */
-    public void setStartChangedID(long aChangedID) {
-        changedID = aChangedID;
-    }
-
-    /**
-     * Used for combining multiple comparators in order to create a single
-     * output document. The IDs must be successive along the different
-     * comparators.
-     */
-    public void setStartNewID(long aNewID) {
-        newID = aNewID;
-    }
-
-    public long getChangedID() {
-        return changedID;
-    }
-
-    public long getDeletedID() {
-        return deletedID;
-    }
-
-    public long getNewID() {
-        return newID;
-    }
-
-    public List<Modification> getLastModified() {
-        return lastModified;
-    }
-
-    public void setLastModified(List<Modification> aLastModified) {
-        lastModified = new ArrayList<Modification>(aLastModified);
+    private void linkPreviousModificationsWithCurrent(Modification mod) {
+        if (lastModified.size() > 0) {
+            mod.setPrevious(lastModified.get(0));
+            if (lastModified.get(0).getNext() == null) {
+                for (Modification lastMod : lastModified) {
+                    lastMod.setNext(mod);
+                }
+            }
+        }
     }
 }

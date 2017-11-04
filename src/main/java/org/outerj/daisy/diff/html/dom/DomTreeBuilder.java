@@ -135,6 +135,9 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
             if (isSeparatingTag(currentParent)) {
                 addSeparatorNode();
             }
+            if (isBlockSpan(currentParent)) {
+                addWhitespaceNode();
+            }
             currentParent = currentParent.getParent();
             whiteSpaceBeforeThis = false;
         }
@@ -199,6 +202,10 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
         return aTagNode.isBlockLevel();
     }
 
+    private boolean isBlockSpan(TagNode tagNode) {
+        return tagNode.isBlockSpan();
+    }
+
     /**
      * Ensures that a separator is added after the last text node.
      */
@@ -213,6 +220,11 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
         }
 
         textNodes.add(new SeparatingNode(currentParent));
+    }
+
+    // Do not need this tags in the comparison, only for DOM building.
+    private void addWhitespaceNode() {
+        new WhiteSpaceNode(currentParent, "");
     }
 
     private static boolean isPartOfNumber(char c, char prev, char next) {
@@ -248,6 +260,9 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
             case '+':
             case '*':
             case ':':
+                // &nbsp;
+                // nbsp should not count as whitespace
+            case ' ':
                 return true;
             default:
                 return false;

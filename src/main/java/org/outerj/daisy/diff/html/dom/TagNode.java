@@ -28,6 +28,7 @@ import org.xml.sax.helpers.AttributesImpl;
  */
 public class TagNode extends Node implements Iterable<Node> {
 
+    private static final String NON_FORMATTED_SPAN = "H-ConsNonformat";
     private List<Node> children = new ArrayList<Node>();
 
     private String qName;
@@ -454,7 +455,7 @@ public class TagNode extends Node implements Iterable<Node> {
     public static boolean isBlockLevel(Node node) {
         try {
             TagNode tagnode = (TagNode) node;
-            return isBlockLevel(tagnode.getQName());
+            return isBlockLevel(tagnode.getQName()) || isBlockSpan(tagnode);
         } catch (ClassCastException e) {
             return false;
         }
@@ -462,6 +463,15 @@ public class TagNode extends Node implements Iterable<Node> {
 
     public boolean isBlockLevel() {
         return isBlockLevel(this);
+    }
+
+    public boolean isBlockSpan() {
+        return isBlockSpan(this);
+    }
+
+    private static boolean isBlockSpan(TagNode tag) {
+        return tag.getQName().equals("span")
+            && Objects.equals(tag.getAttributes().getValue(TextNodePreprocessor.CLASS_ATTRIBUTE), NON_FORMATTED_SPAN);
     }
 
     public static boolean isInline(String qName) {

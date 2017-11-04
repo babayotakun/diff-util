@@ -71,7 +71,7 @@ public class TextOnlyComparator implements IRangeComparator {
 
     public double getMatchRatio(TextOnlyComparator other) {
         // in this case we assume that this comparator has all document nodes
-        if (this.leafs.size() > 1000) {
+        if (this.leafs.size() > 1000 || other.leafs.size() > 1000) {
             return 0.0;
         }
         RangeDifference[] differences = RangeDifferencer.findDifferences(other, this);
