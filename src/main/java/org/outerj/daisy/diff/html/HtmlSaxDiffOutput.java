@@ -28,6 +28,8 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
+import static org.outerj.daisy.diff.html.dom.TagNode.CLASS_ATTRIBUTE;
+
 /**
  * Takes a branch root and creates an HTML file for it.
  */
@@ -82,15 +84,15 @@ public class HtmlSaxDiffOutput implements DiffOutput {
             } else if (child instanceof HiddenNoteNode) {
                 TagNode realChild = ((HiddenNoteNode) child).getRealTagNode();
                 Modification mod = ((HiddenNoteNode) child).getModification();
-                String oldClassAttr = realChild.getAttributes().getValue("class");
+                String oldClassAttr = realChild.getAttributes().getValue(CLASS_ATTRIBUTE);
                 if (mod.getOutputType() == ModificationType.ADDED) {
                     AttributesImpl newAttr = new AttributesImpl();
-                    newAttr.addAttribute("", "class", "class", "CDATA",
+                    newAttr.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
                         oldClassAttr + " diff-note-added");
                     realChild.setAttributes(newAttr);
                 } else {
                     AttributesImpl newAttr = new AttributesImpl();
-                    newAttr.addAttribute("", "class", "class", "CDATA",
+                    newAttr.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
                         oldClassAttr + " diff-note-removed");
                     realChild.setAttributes(newAttr);
                 }
@@ -120,7 +122,7 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 // part can start
                 if (!newStarted && mod.getOutputType() == ModificationType.ADDED) {
                     AttributesImpl attrs = new AttributesImpl();
-                    attrs.addAttribute("", "class", "class", "CDATA",
+                    attrs.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
                             "diff-html-added");
                     setFirstOfIdIfNeeded(mod);
                     if (mod.isFirstOfID()) {
@@ -136,7 +138,7 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 } else if (!changeStarted
                         && mod.getOutputType() == ModificationType.CHANGED) {
                     AttributesImpl attrs = new AttributesImpl();
-                    attrs.addAttribute("", "class", "class", "CDATA",
+                    attrs.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
                             "diff-html-changed");
                     setFirstOfIdIfNeeded(mod);
                     if (mod.isFirstOfID()) {
@@ -153,7 +155,7 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 } else if (!remStarted
                 		&& mod.getOutputType() == ModificationType.REMOVED) {
                 	AttributesImpl attrs = new AttributesImpl();
-                	attrs.addAttribute("", "class", "class", "CDATA",
+                	attrs.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
                 	"diff-html-removed");
                     setFirstOfIdIfNeeded(mod);
                     if (mod.isFirstOfID()) {
@@ -168,7 +170,7 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 } else if (!conflictStarted
                         && mod.getOutputType() == ModificationType.CONFLICT) {
                     AttributesImpl attrs = new AttributesImpl();
-                    attrs.addAttribute("", "class", "class", "CDATA",
+                    attrs.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
                             "diff-html-conflict");
                     setFirstOfIdIfNeeded(mod);
                     if (mod.isFirstOfID()) {

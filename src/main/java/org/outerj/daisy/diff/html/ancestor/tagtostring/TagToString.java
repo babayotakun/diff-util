@@ -17,13 +17,14 @@ package org.outerj.daisy.diff.html.ancestor.tagtostring;
 
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
-
 import org.outerj.daisy.diff.html.ancestor.ChangeText;
 import org.outerj.daisy.diff.html.ancestor.TagChangeSematic;
 import org.outerj.daisy.diff.html.dom.TagNode;
 import org.outerj.daisy.diff.html.modification.HtmlLayoutChange;
 import org.outerj.daisy.diff.html.modification.HtmlLayoutChange.Type;
 import org.xml.sax.Attributes;
+
+import static org.outerj.daisy.diff.html.dom.TagNode.CLASS_ATTRIBUTE;
 
 public class TagToString {
 
@@ -54,6 +55,8 @@ public class TagToString {
     	htmlLayoutChange.setEndingTag(node.getEndTag());
     	htmlLayoutChange.setOpeningTag(node.getOpeningTag());
     	htmlLayoutChange.setType(Type.TAG_REMOVED);
+    	htmlLayoutChange.setChangedTagQName(node.getQName());
+    	htmlLayoutChange.setChangedTagClass(node.getAttributes().getValue(CLASS_ATTRIBUTE));
         if (sem == TagChangeSematic.MOVED) {
             txt.addText(getMovedOutOf() + " " + getArticle().toLowerCase()
                     + " ");
@@ -80,6 +83,8 @@ public class TagToString {
     	htmlLayoutChange.setEndingTag(node.getEndTag());
     	htmlLayoutChange.setOpeningTag(node.getOpeningTag());
     	htmlLayoutChange.setType(Type.TAG_ADDED);
+        htmlLayoutChange.setChangedTagQName(node.getQName());
+        htmlLayoutChange.setChangedTagClass(node.getAttributes().getValue(CLASS_ATTRIBUTE));
         if (sem == TagChangeSematic.MOVED) {
             txt.addText(getMovedTo() + " " + getArticle().toLowerCase() + " ");
             txt.addHtml("<b>");

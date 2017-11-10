@@ -14,11 +14,12 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+import static org.outerj.daisy.diff.html.dom.TagNode.CLASS_ATTRIBUTE;
+
 /**
  * Created by d.kalach on 6/22/17.
  */
 public class TextNodePreprocessor {
-    static final String CLASS_ATTRIBUTE = "class";
     private static final String DISPLAY_NONE_CLASS = "color__800000 display_none";
     private static final String NOT_VISIBLE_ELEMENT = "not-visible-element";
     private static final Pattern CONTENTS_LABEL = Pattern.compile("\\{ОГЛ_.*=.*_(.*)}");
@@ -166,6 +167,21 @@ public class TextNodePreprocessor {
         return Optional.ofNullable(tag.getAttributes().getValue(CLASS_ATTRIBUTE))
             .map(clazz -> DISPLAY_NONE_CLASS.equals(clazz) || NOT_VISIBLE_ELEMENT.equals(clazz))
             .orElse(false);
+    }
+
+    static boolean isHiddenElementRecursive(TagNode tag) {
+        if (isHiddenElement(tag)) {
+            return true;
+        }
+        boolean allChildrenAreHidden = true;
+        for (Node child : tag) {
+            if (child instanceof TagNode) {
+                allChildrenAreHidden = allChildrenAreHidden && isHiddenElementRecursive((TagNode) child);
+            } else {
+                return false;
+            }
+        }
+        return allChildrenAreHidden;
     }
 
     static boolean isNotVisibleElement(TagNode tag) {

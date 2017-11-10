@@ -28,6 +28,7 @@ import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
 
 import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isHiddenElement;
+import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isHiddenElementRecursive;
 
 /**
  * Node that can contain other nodes. Represents an HTML tag.
@@ -35,6 +36,8 @@ import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isHiddenElemen
  */
 public class TagNode extends Node implements Iterable<Node> {
 
+    public static final String CLASS_ATTRIBUTE = "class";
+    public static final String OLD_CLASS_ATTRIBUTE = "old-class";
     private static final String NON_FORMATTED_SPAN = "H-ConsNonformat";
     private List<Node> children = new ArrayList<Node>();
 
@@ -246,7 +249,8 @@ public class TagNode extends Node implements Iterable<Node> {
     	if (another instanceof TagNode) {
     		TagNode otherNode = (TagNode) another;
     		if (this.getQName().equalsIgnoreCase(otherNode.getQName())) {
-    			result = hasSameAttributes(otherNode.getAttributes());
+    		    // We need to track style differences only in the spans.
+    			result = !this.getQName().equalsIgnoreCase("span") || hasSameAttributes(otherNode.getAttributes());
                 //return true;
     		}
     	}
@@ -325,16 +329,18 @@ public class TagNode extends Node implements Iterable<Node> {
         for (Node child : this) {//check if kids are in the deleted set
             List<Node> childrenChildren = child.getMinimalDeletedSet(id);
             nodes.addAll(childrenChildren);
-            // Not visible elements do not stop us from deleting all tag node.
-            boolean notVisibleElementNotAdded = childrenChildren.isEmpty() && child instanceof TagNode && isHiddenElement((TagNode) child);
             boolean singleChildAdded = childrenChildren.size() == 1 && childrenChildren.contains(child);
-            if (!hasNotDeletedDescendant && !(singleChildAdded || notVisibleElementNotAdded)) {
+            if (!hasNotDeletedDescendant && !singleChildAdded) {
                 // This child is not entirely deleted
                 hasNotDeletedDescendant = true;
             }
         }
-        //if all kids are in the deleted set - remove them and put this instead
-        if (!hasNotDeletedDescendant) {
+        boolean leftOnlyHidden = false;
+        if (!nodes.isEmpty()) {
+            leftOnlyHidden = children.stream().filter(child -> !nodes.contains(child))
+                .allMatch(child -> child instanceof TagNode && (isHiddenElement((TagNode) child) || isHiddenElementRecursive((TagNode) child)));
+        }
+        if (!hasNotDeletedDescendant || leftOnlyHidden) {
             nodes.clear();
             nodes.add(this);
         }
@@ -481,7 +487,7 @@ public class TagNode extends Node implements Iterable<Node> {
 
     private static boolean isBlockSpan(TagNode tag) {
         return tag.getQName().equals("span")
-            && Objects.equals(tag.getAttributes().getValue(TextNodePreprocessor.CLASS_ATTRIBUTE), NON_FORMATTED_SPAN);
+            && Objects.equals(tag.getAttributes().getValue(CLASS_ATTRIBUTE), NON_FORMATTED_SPAN);
     }
 
     public static boolean isInline(String qName) {

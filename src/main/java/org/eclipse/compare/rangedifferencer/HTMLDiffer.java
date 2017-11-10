@@ -20,6 +20,7 @@ import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.compare.internal.LCSSettings;
 import org.outerj.daisy.diff.DiffMode;
+import org.outerj.daisy.diff.html.ChangedClassesHandler;
 import org.outerj.daisy.diff.html.ChunkCreator;
 import org.outerj.daisy.diff.html.IterableTextNodeComparator;
 import org.outerj.daisy.diff.html.TextNodeComparator;
@@ -63,6 +64,7 @@ public class HTMLDiffer implements Differ {
         LOGGER.info("Difference search completed in " + (System.currentTimeMillis() - findDiffStart));
         LOGGER.info("Total found " + diffCount + " differences");
 
+        new ChangedClassesHandler().processChangedClasses(rightComparator.getBodyNode());
         rightComparator.expandWhiteSpace();
         output.generateOutput(rightComparator.getBodyNode());
         return diffCount;

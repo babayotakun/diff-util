@@ -3,8 +3,6 @@ package org.outerj.daisy.diff.html.dom.helper;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.commons.lang3.StringUtils;
 import org.xml.sax.Attributes;
 /**
  * Map is used to store DOM tag attribute names and values. 
@@ -76,12 +74,10 @@ public class AttributesMap extends HashMap<String, String> {
             if (localValue == null)
                 return false;
             if (!localValue.equals(value)) {
-            	// TODO: should have a better heuristic
-				// Some equal <td> can have different styles.
-                if (qName.equals(STYLE_ATTR))
-                    continue;
-                if (qName.equals(CLASS_ATTR))
-                    continue;
+				if (qName.equals(STYLE_ATTR) && equivalentStyles(value, localValue))
+					continue;
+				if (qName.equals(CLASS_ATTR) && sameClassSet(value, localValue))
+					continue;
                 return false;
             }
         }
@@ -271,13 +267,7 @@ public class AttributesMap extends HashMap<String, String> {
 		//checking classes
 		Arrays.sort(set1);
 		Arrays.sort(set2);
-		// need for table cells: the same table sells can have different styles like height_40 and height_43
-		for (int i = 0; i < set1.length; i++) {
-			if (StringUtils.getLevenshteinDistance(set1[i], set2[i]) > 10) {
-				return false;
-			}
-		}
-		return true;
+		return Arrays.equals(set1, set2);
 	}
 
 	/**
