@@ -22,7 +22,7 @@ import static org.outerj.daisy.diff.html.dom.TagNode.CLASS_ATTRIBUTE;
 public class TextNodePreprocessor {
     private static final String DISPLAY_NONE_CLASS = "color__800000 display_none";
     private static final String NOT_VISIBLE_ELEMENT = "not-visible-element";
-    private static final Pattern CONTENTS_LABEL = Pattern.compile("\\{ОГЛ_.*=.*_(.*)}");
+    private static final Pattern CONTENTS_LABEL = Pattern.compile("\\{ОГЛ_[^=]=[*\\d]_([^}]*)}");
     private static final String HIDDEN_NOTE = "hidden-note";
     private static final int NEXT_NODES_IN_SEGMENT_DEFINITION = 5;
     private static final String FAKE_NON_BREAKING_SPACE = "fake-non-breaking-space";
