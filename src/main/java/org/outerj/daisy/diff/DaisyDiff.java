@@ -34,7 +34,13 @@ public class DaisyDiff {
     private static final String BODY_OPEN = "<body>";
     private static final String BODY_CLOSE = "</body>";
 
-    public int diffHTML(InputSource oldSource, InputSource newSource, ContentHandler consumer, String prefix, DiffMode mode, int chunkSize)
+    public int diffHTML(InputSource oldSource,
+                        InputSource newSource,
+                        ContentHandler consumer,
+                        String prefix,
+                        DiffMode mode,
+                        int chunkSize,
+                        int maxChunkSize)
         throws SAXException, IOException {
 
         DomTreeBuilder oldHandler = new DomTreeBuilder(true);
@@ -55,7 +61,7 @@ public class DaisyDiff {
         HtmlSaxDiffOutput output = new HtmlSaxDiffOutput(consumer, prefix);
         HTMLDiffer differ = new HTMLDiffer(output);
 
-        return differ.diff(leftComparator, rightComparator, mode, chunkSize);
+        return differ.diff(leftComparator, rightComparator, mode, chunkSize, maxChunkSize);
     }
 
     private void wrapHtmlWithBodyTagIfNeeded(InputSource source) throws IOException {

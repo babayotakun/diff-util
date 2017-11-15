@@ -43,13 +43,17 @@ public class HTMLDiffer implements Differ {
     /**
      * {@inheritDoc}
      */
-    public int diff(TextNodeComparator leftComparator, TextNodeComparator rightComparator, DiffMode mode, int chunkSize) throws SAXException {
+    public int diff(TextNodeComparator leftComparator,
+                    TextNodeComparator rightComparator,
+                    DiffMode mode,
+                    int chunkSize,
+                    int maxChunkSize) throws SAXException {
         long findDiffStart = System.currentTimeMillis();
         LOGGER.info("Diff started in " + mode.name() + " mode");
         int diffCount;
         switch (mode) {
             case CHUNKED:
-                diffCount = chunkedDiff(leftComparator, rightComparator, chunkSize);
+                diffCount = chunkedDiff(leftComparator, rightComparator, chunkSize, maxChunkSize);
                 break;
             case FULL:
                 diffCount = fullDiff(leftComparator, rightComparator, false);
@@ -70,10 +74,13 @@ public class HTMLDiffer implements Differ {
         return diffCount;
     }
 
-    private int chunkedDiff(TextNodeComparator leftComparator, TextNodeComparator rightComparator, int chunkSize) {
+    private int chunkedDiff(TextNodeComparator leftComparator, TextNodeComparator rightComparator, int chunkSize, int maxChunkSize) {
         int diffCount = 0;
-        ChunkCreator chunkCreator = new ChunkCreator(leftComparator, rightComparator);
+        int pairCount = 0;
+        ChunkCreator chunkCreator = new ChunkCreator(leftComparator, rightComparator, maxChunkSize);
         for (Pair<List<TextNode>, List<TextNode>> diffPair : chunkCreator.getChunks(chunkSize)) {
+            LOGGER.info("Started diff of pair, left size: {}, right size: {}", diffPair.getLeft().size(), diffPair.getRight().size());
+            long pairStart = System.currentTimeMillis();
             RangeDifference[] differences = RangeDifferencer.findDifferences(
                 new LCSSettings(),
                 new IterableTextNodeComparator(diffPair.getLeft()),
@@ -83,6 +90,7 @@ public class HTMLDiffer implements Differ {
             rightComparator.setTextNodes(diffPair.getRight());
             diffCount += diffToProcess.size();
             processDifferences(leftComparator, rightComparator, diffToProcess);
+            LOGGER.info("Pair processed in {} ms, found {} differences", System.currentTimeMillis() - pairStart, diffToProcess.size());
         }
         return diffCount;
     }

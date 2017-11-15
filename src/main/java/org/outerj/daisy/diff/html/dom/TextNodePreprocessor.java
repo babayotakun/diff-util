@@ -13,6 +13,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.outerj.daisy.diff.html.dom.TagNode.CLASS_ATTRIBUTE;
 
@@ -20,6 +22,7 @@ import static org.outerj.daisy.diff.html.dom.TagNode.CLASS_ATTRIBUTE;
  * Created by d.kalach on 6/22/17.
  */
 public class TextNodePreprocessor {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TextNodePreprocessor.class);
     private static final String DISPLAY_NONE_CLASS = "color__800000 display_none";
     private static final String NOT_VISIBLE_ELEMENT = "not-visible-element";
     private static final Pattern CONTENTS_LABEL = Pattern.compile("\\{ОГЛ_[^=]=[*\\d]_([^}]*)}");
@@ -36,8 +39,8 @@ public class TextNodePreprocessor {
         this.textNodes = textNodes;
     }
 
-    public List<Pair<String, List<TextNode>>> collectSegmentNodes() {
-        collectSegmentNodes(bodyNode);
+    public List<Pair<String, List<TextNode>>> collectSegmentNodes(int maxChunkSize) {
+        collectSegmentNodes(bodyNode, maxChunkSize);
         segments.add(new ImmutablePair<>(currentContentsLabel, currentTextNodes));
         return segments;
     }
@@ -56,7 +59,7 @@ public class TextNodePreprocessor {
             }
         }
 
-        System.out.println("Remove unprocessable nodes in " + (System.currentTimeMillis() - start) + " ms");
+        LOGGER.info("Remove unprocessable nodes in {} ms", System.currentTimeMillis() - start);
         return newNodes;
     }
 
@@ -125,7 +128,7 @@ public class TextNodePreprocessor {
     private String currentContentsLabel = "0";
     private List<TextNode> currentTextNodes = new ArrayList<>();
 
-    private void collectSegmentNodes(TagNode parent) {
+    private void collectSegmentNodes(TagNode parent, int maxChunkSize) {
         for (Node current : parent) {
             if (current instanceof TagNode) {
                 TagNode currentTag = (TagNode) current;
@@ -135,10 +138,16 @@ public class TextNodePreprocessor {
                     currentContentsLabel = contentsLabel;
                     currentTextNodes = new ArrayList<>();
                 } else if (!isHiddenElement(currentTag)) {
-                    collectSegmentNodes(currentTag);
+                    collectSegmentNodes(currentTag, maxChunkSize);
                 }
             } else if (current instanceof TextNode) {
                 currentTextNodes.add((TextNode) current);
+                if (currentTextNodes.size() > maxChunkSize) {
+                    LOGGER.warn("*** Document contains a chuck too large to process, chuck will be split");
+                    segments.add(new ImmutablePair<>(currentContentsLabel, currentTextNodes));
+                    currentContentsLabel = currentContentsLabel + "0";
+                    currentTextNodes = new ArrayList<>();
+                }
             }
         }
     }

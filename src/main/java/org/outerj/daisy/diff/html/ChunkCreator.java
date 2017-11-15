@@ -16,11 +16,11 @@ public class ChunkCreator {
     private final List<Pair<String, List<TextNode>>> segmentsLeft;
     private final List<Pair<String, List<TextNode>>> segmentsRight;
 
-    public ChunkCreator(TextNodeComparator leftComparator, TextNodeComparator rightComparator) {
+    public ChunkCreator(TextNodeComparator leftComparator, TextNodeComparator rightComparator, int maxChunkSize) {
         TextNodePreprocessor preprocessorLeft = new TextNodePreprocessor(leftComparator.getBodyNode(), leftComparator.getTextNodes());
         TextNodePreprocessor preprocessorRight = new TextNodePreprocessor(rightComparator.getBodyNode(), rightComparator.getTextNodes());
-        segmentsLeft = preprocessorLeft.collectSegmentNodes();
-        segmentsRight = preprocessorRight.collectSegmentNodes();
+        segmentsLeft = preprocessorLeft.collectSegmentNodes(maxChunkSize);
+        segmentsRight = preprocessorRight.collectSegmentNodes(maxChunkSize);
     }
 
     public Collection<Pair<List<TextNode>, List<TextNode>>> getChunks(int maxChunkSize) {
@@ -62,7 +62,8 @@ public class ChunkCreator {
         List<TextNode> leftChunk = new ArrayList<>();
         List<TextNode> rightChunk = new ArrayList<>();
         for (Pair<List<TextNode>, List<TextNode>> pair : toChop) {
-            if (canBeAddedToCurrentChunk(chunkSize, leftChunk, rightChunk, pair) || tooBigPair(chunkSize, pair)) {
+            if (canBeAddedToCurrentChunk(chunkSize, leftChunk, rightChunk, pair)
+                || (tooBigPair(chunkSize, pair) && leftChunk.isEmpty() && rightChunk.isEmpty())) {
                 leftChunk.addAll(pair.getLeft());
                 rightChunk.addAll(pair.getRight());
             } else {
