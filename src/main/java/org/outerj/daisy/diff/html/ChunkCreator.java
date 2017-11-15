@@ -62,24 +62,19 @@ public class ChunkCreator {
         List<TextNode> leftChunk = new ArrayList<>();
         List<TextNode> rightChunk = new ArrayList<>();
         for (Pair<List<TextNode>, List<TextNode>> pair : toChop) {
-            if (canBeAddedToCurrentChunk(chunkSize, leftChunk, rightChunk, pair)
-                || (tooBigPair(chunkSize, pair) && leftChunk.isEmpty() && rightChunk.isEmpty())) {
+            if (canBeAddedToCurrentChunk(chunkSize, leftChunk, rightChunk, pair)) {
                 leftChunk.addAll(pair.getLeft());
                 rightChunk.addAll(pair.getRight());
             } else {
                 result.add(new ImmutablePair<>(leftChunk, rightChunk));
-                leftChunk = new ArrayList<>();
-                rightChunk = new ArrayList<>();
+                rightChunk = new ArrayList<>(pair.getRight());
+                leftChunk = new ArrayList<>(pair.getLeft());
             }
         }
         if (!leftChunk.isEmpty() || !rightChunk.isEmpty()) {
             result.add(new ImmutablePair<>(leftChunk, rightChunk));
         }
         return result;
-    }
-
-    private boolean tooBigPair(int chunkSize, Pair<List<TextNode>, List<TextNode>> pair) {
-        return pair.getLeft().size() >= chunkSize || pair.getRight().size() >= chunkSize;
     }
 
     private boolean canBeAddedToCurrentChunk(int chunkSize, List<TextNode> leftChunk, List<TextNode> rightChunk,
