@@ -1,5 +1,6 @@
 package org.outerj.daisy.diff.html;
 
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -23,11 +24,11 @@ public class ChunkCreator {
         segmentsRight = preprocessorRight.collectSegmentNodes(maxChunkSize);
     }
 
-    public Collection<Pair<List<TextNode>, List<TextNode>>> getChunks(int maxChunkSize) {
-        return reduceToChunks(merge(), maxChunkSize);
+    public Collection<Pair<List<TextNode>, List<TextNode>>> getChunks(int chunkSize, int maxChunkSize) {
+        return reduceToChunks(merge(maxChunkSize), chunkSize);
     }
 
-    private Collection<Pair<List<TextNode>, List<TextNode>>> merge() {
+    private Collection<Pair<List<TextNode>, List<TextNode>>> merge(int maxChunkSize) {
         List<TextNode> currentLeft = new ArrayList<>();
         List<TextNode> currentRight = new ArrayList<>();
         List<Pair<List<TextNode>, List<TextNode>>> result = new ArrayList<>();
@@ -42,7 +43,16 @@ public class ChunkCreator {
             if (rightIndex > -1 && lastRightIndex < rightIndex) {
                 segmentsRight.subList(lastRightIndex, rightIndex).stream().map(Pair::getRight).forEach(currentRight::addAll);
                 segmentsLeft.subList(lastLeftIndex, leftIndex).stream().map(Pair::getRight).forEach(currentLeft::addAll);
-                result.add(new ImmutablePair<>(currentLeft, currentRight));
+                if (currentLeft.size() > maxChunkSize || currentRight.size() > maxChunkSize) {
+                    int partCount = Math.max(currentLeft.size() / maxChunkSize + 1, currentRight.size() / maxChunkSize + 1);
+                    List<List<TextNode>> leftChunkParts = Lists.partition(currentLeft, (int) Math.ceil((double) currentLeft.size() / partCount));
+                    List<List<TextNode>> rightChunkParts = Lists.partition(currentRight, (int) Math.ceil((double) currentRight.size() / partCount));
+                    for (int currentPart = 0; currentPart < partCount; currentPart++) {
+                        result.add(new ImmutablePair<>(leftChunkParts.get(currentPart), rightChunkParts.get(currentPart)));
+                    }
+                } else {
+                    result.add(new ImmutablePair<>(currentLeft, currentRight));
+                }
                 currentLeft = new ArrayList<>();
                 currentRight = new ArrayList<>();
                 lastLeftIndex = leftIndex;

@@ -76,9 +76,8 @@ public class HTMLDiffer implements Differ {
 
     private int chunkedDiff(TextNodeComparator leftComparator, TextNodeComparator rightComparator, int chunkSize, int maxChunkSize) {
         int diffCount = 0;
-        int pairCount = 0;
         ChunkCreator chunkCreator = new ChunkCreator(leftComparator, rightComparator, maxChunkSize);
-        for (Pair<List<TextNode>, List<TextNode>> diffPair : chunkCreator.getChunks(chunkSize)) {
+        for (Pair<List<TextNode>, List<TextNode>> diffPair : chunkCreator.getChunks(chunkSize, maxChunkSize)) {
             LOGGER.info("Started diff of pair, left size: {}, right size: {}", diffPair.getLeft().size(), diffPair.getRight().size());
             long pairStart = System.currentTimeMillis();
             RangeDifference[] differences = RangeDifferencer.findDifferences(
