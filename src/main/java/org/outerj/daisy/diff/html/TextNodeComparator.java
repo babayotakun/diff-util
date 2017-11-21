@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.compare.rangedifferencer.IRangeComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparatorResult;
@@ -94,6 +95,13 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
             getTextNode(start).setWhiteBefore(false);
 
         List<Modification> nextLastModified = new ArrayList<Modification>();
+        boolean onlyNonBreakingSpaces = getTextNodes().subList(start, end).stream()
+            .map(TextNode::getText)
+            .allMatch(text -> StringUtils.containsOnly(text, '\u00A0'));
+
+        if (onlyNonBreakingSpaces) {
+            return;
+        }
 
         for (int i = start; i < end; i++) {
             Modification mod = new Modification(ModificationType.ADDED, outputFormat);
@@ -225,6 +233,15 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         oldComp.getTextNode(start).getModification().setFirstOfID(true);
 
         List<Node> deletedNodes = getDeletedNodes(oldComp, start);
+
+        // helps in case of non-formatted text changed to the usual.
+        boolean onlyNonBreakingSpaces = deletedNodes.stream().filter(TextNode.class::isInstance)
+            .map(node -> ((TextNode) node).getText())
+            .allMatch(text -> StringUtils.containsOnly(text, '\u00A0'));
+        if (onlyNonBreakingSpaces) {
+            deletedNodes = new ArrayList<>();
+        }
+
         // Set prevLeaf to the leaf after which the old HTML needs to be
         // inserted
         Node prevLeaf = null;

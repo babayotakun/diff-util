@@ -239,7 +239,7 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
             case '/':
             case '.':
             case '!':
-            case ',':
+           // case ',':
             case ';':
             case '?':
             case '=':
@@ -262,7 +262,7 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
             case ':':
                 // &nbsp;
                 // nbsp should not count as whitespace
-            case ' ':
+            case '\u00A0':
                 return true;
             default:
                 return false;

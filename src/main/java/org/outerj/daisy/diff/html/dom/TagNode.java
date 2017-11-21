@@ -38,7 +38,7 @@ public class TagNode extends Node implements Iterable<Node> {
 
     public static final String CLASS_ATTRIBUTE = "class";
     public static final String OLD_CLASS_ATTRIBUTE = "old-class";
-    private static final String NON_FORMATTED_SPAN = "H-ConsNonformat";
+    public static final String NON_FORMATTED_SPAN = "H-ConsNonformat";
     private List<Node> children = new ArrayList<Node>();
 
     private String qName;
