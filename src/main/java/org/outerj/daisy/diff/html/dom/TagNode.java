@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.outerj.daisy.diff.html.ancestor.TextOnlyComparator;
 import org.outerj.daisy.diff.html.dom.helper.AttributesMap;
+import org.outerj.daisy.diff.html.modification.ModificationType;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
 
@@ -44,6 +45,24 @@ public class TagNode extends Node implements Iterable<Node> {
     private String qName;
 
     private Attributes attributes;
+    private Boolean hiddenFlag = null;
+    private Boolean recursiveHiddenFlag = null;
+
+    public Boolean getHiddenFlag() {
+        return hiddenFlag;
+    }
+
+    public void setHiddenFlag(Boolean hiddenFlag) {
+        this.hiddenFlag = hiddenFlag;
+    }
+
+    public Boolean getRecursiveHiddenFlag() {
+        return recursiveHiddenFlag;
+    }
+
+    public void setRecursiveHiddenFlag(Boolean recursiveHiddenFlag) {
+        this.recursiveHiddenFlag = recursiveHiddenFlag;
+    }
 
     /**
      * Attributes objects are unmodifiable and {@link #attributes} is final, so we can usefully cache the
@@ -315,7 +334,7 @@ public class TagNode extends Node implements Iterable<Node> {
     @Override
     public List<Node> getMinimalDeletedSet(long id) {
 
-        List<Node> nodes = new ArrayList<Node>();
+        List<Node> nodes = new ArrayList<>();
 
         //no-content tags are never included in the set
         if (children.stream().allMatch(child -> child instanceof TagNode && isHiddenElement((TagNode) child))) {
@@ -327,9 +346,20 @@ public class TagNode extends Node implements Iterable<Node> {
         boolean hasNotDeletedDescendant = false;
 
         for (Node child : this) {//check if kids are in the deleted set
-            List<Node> childrenChildren = child.getMinimalDeletedSet(id);
-            nodes.addAll(childrenChildren);
-            boolean singleChildAdded = childrenChildren.size() == 1 && childrenChildren.contains(child);
+
+            // Do not call getMinimalDeletedSet on TextNodes cause in leads to massive memory allocations.
+            List<Node> childrenChildren;
+            boolean singleChildAdded = false;
+            if (child instanceof TextNode) {
+                TextNode text = (TextNode) child;
+                if (text.getModification().getType() == ModificationType.REMOVED && text.getModification().getID() == id) {
+                    nodes.add(child);
+                    singleChildAdded = true;
+                }
+            } else {
+                childrenChildren = child.getMinimalDeletedSet(id);
+                nodes.addAll(childrenChildren);
+            }
             if (!hasNotDeletedDescendant && !singleChildAdded) {
                 // This child is not entirely deleted
                 hasNotDeletedDescendant = true;

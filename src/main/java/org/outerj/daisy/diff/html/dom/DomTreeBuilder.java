@@ -26,6 +26,8 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
 
     private static final String FAKE_NON_BREAKING_SPACE = "fake-non-breaking-space";
     private static final String HIDDEN_NOTE = "hidden-note";
+    private static final String FIRST_PART_OF_HIDDEN_NOTES = "editorial-text hidden-note";
+    private static final String SECOND_PART_OF_HIDDEN_NOTES = "plain-insert hidden-note";
     private List<TextNode> textNodes = new ArrayList<TextNode>(50);
     private BodyNode bodyNode = new BodyNode();
     private TagNode currentParent = bodyNode;
@@ -237,8 +239,12 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
         if (classAttr != null) {
             if (FAKE_NON_BREAKING_SPACE.equals(classAttr)) {
                 new WhiteSpaceNode(newTagNode, "\u00A0");
-            } else if (classAttr.contains(HIDDEN_NOTE)) {
+            } else if (FIRST_PART_OF_HIDDEN_NOTES.equals(classAttr)) {
+                new SeparatingNode(currentParent);
                 new HiddenNoteNode(newTagNode, currentParent);
+            } else if (SECOND_PART_OF_HIDDEN_NOTES.equals(classAttr)) {
+                new HiddenNoteNode(newTagNode, currentParent);
+                new SeparatingNode(currentParent);
             }
         }
     }

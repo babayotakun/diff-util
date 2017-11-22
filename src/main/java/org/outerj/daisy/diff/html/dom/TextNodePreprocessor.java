@@ -85,23 +85,33 @@ public class TextNodePreprocessor {
     }
 
     static boolean isHiddenElement(TagNode tag) {
-        return Optional.ofNullable(tag.getAttributes().getValue(CLASS_ATTRIBUTE))
+        if (tag.getHiddenFlag() != null) {
+            return tag.getHiddenFlag();
+        }
+        boolean isHidden = Optional.ofNullable(tag.getAttributes().getValue(CLASS_ATTRIBUTE))
             .map(clazz -> DISPLAY_NONE_CLASS.equals(clazz) || NOT_VISIBLE_ELEMENT.equals(clazz))
             .orElse(false);
+        tag.setHiddenFlag(isHidden);
+        return isHidden;
     }
 
     static boolean isHiddenElementRecursive(TagNode tag) {
         if (isHiddenElement(tag)) {
             return true;
         }
+        if (tag.getRecursiveHiddenFlag() != null) {
+            return tag.getRecursiveHiddenFlag();
+        }
         boolean allChildrenAreHidden = true;
         for (Node child : tag) {
             if (child instanceof TagNode) {
                 allChildrenAreHidden = allChildrenAreHidden && isHiddenElementRecursive((TagNode) child);
             } else {
-                return false;
+                allChildrenAreHidden = false;
+                break;
             }
         }
+        tag.setRecursiveHiddenFlag(allChildrenAreHidden);
         return allChildrenAreHidden;
     }
 
