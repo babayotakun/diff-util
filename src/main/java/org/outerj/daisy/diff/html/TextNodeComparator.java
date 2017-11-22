@@ -29,7 +29,6 @@ import org.outerj.daisy.diff.html.dom.DomTree;
 import org.outerj.daisy.diff.html.dom.Node;
 import org.outerj.daisy.diff.html.dom.TagNode;
 import org.outerj.daisy.diff.html.dom.TextNode;
-import org.outerj.daisy.diff.html.dom.TextNodePreprocessor;
 import org.outerj.daisy.diff.html.dom.helper.LastCommonParentResult;
 import org.outerj.daisy.diff.html.modification.Modification;
 import org.outerj.daisy.diff.html.modification.ModificationType;
@@ -43,7 +42,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
 
     private List<TextNode> textNodes;
 
-    private List<Modification> lastModified = new ArrayList<Modification>();
+    private List<Modification> lastModified = new ArrayList<>();
 
     private BodyNode bodyNode;
 
@@ -54,7 +53,6 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         this.locale = locale;
         textNodes = tree.getTextNodes();
         bodyNode = tree.getBodyNode();
-        textNodes = TextNodePreprocessor.removeUnprocessableNodes(getBodyNode(), textNodes);
     }
 
     public BodyNode getBodyNode() {

@@ -18,11 +18,14 @@ package org.outerj.daisy.diff.html.dom;
 import java.util.ArrayList;
 import java.util.List;
 import org.xml.sax.Attributes;
-import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
+
+import static org.outerj.daisy.diff.html.dom.TagNode.CLASS_ATTRIBUTE;
 
 public class DomTreeBuilder extends DefaultHandler implements DomTree {
 
+    private static final String FAKE_NON_BREAKING_SPACE = "fake-non-breaking-space";
+    private static final String HIDDEN_NOTE = "hidden-note";
     private List<TextNode> textNodes = new ArrayList<TextNode>(50);
     private BodyNode bodyNode = new BodyNode();
     private TagNode currentParent = bodyNode;
@@ -59,15 +62,15 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
     }
 
     @Override
-    public void startDocument() throws SAXException {
-        if (documentStarted)
-            throw new IllegalStateException(
-                "This Handler only accepts one document");
+    public void startDocument() {
+        if (documentStarted) {
+            throw new IllegalStateException("This Handler only accepts one document");
+        }
         documentStarted = true;
     }
 
     @Override
-    public void endDocument() throws SAXException {
+    public void endDocument() {
         if (!documentStarted || documentEnded)
             throw new IllegalStateException();
         endWord();
@@ -76,7 +79,7 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
     }
 
     @Override
-    public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
+    public void startElement(String uri, String localName, String qName, Attributes attributes) {
 
         if (!documentStarted || documentEnded)
             throw new IllegalStateException();
@@ -85,6 +88,7 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
             endWord();
 
             TagNode newTagNode = new TagNode(currentParent, localName, attributes);
+            addFakeNodesIfNeeded(newTagNode);
             currentParent = newTagNode;
             lastSibling = null;
             if (whiteSpaceBeforeThis && newTagNode.isInline()) {
@@ -106,8 +110,7 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
     }
 
     @Override
-    public void endElement(String uri, String localName, String qName)
-        throws SAXException {
+    public void endElement(String uri, String localName, String qName) {
 
         if (!documentStarted || documentEnded)
             throw new IllegalStateException();
@@ -117,8 +120,7 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
         } else if (bodyStarted && !bodyEnded) {
             if (localName.equalsIgnoreCase("img")) {
                 // Insert a dummy leaf for the image
-                ImageNode img = new ImageNode(currentParent, currentParent
-                    .getAttributes());
+                ImageNode img = new ImageNode(currentParent, currentParent.getAttributes());
                 img.setWhiteBefore(whiteSpaceBeforeThis);
                 lastSibling = img;
                 textNodes.add(img);
@@ -144,8 +146,7 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
     }
 
     @Override
-    public void characters(char ch[], int start, int length)
-        throws SAXException {
+    public void characters(char ch[], int start, int length) {
 
         if (!documentStarted || documentEnded)
             throw new IllegalStateException();
@@ -223,12 +224,23 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
     }
 
     // Do not need this tags in the comparison, only for DOM building.
+
     private void addWhitespaceNode() {
         new WhiteSpaceNode(currentParent, "");
     }
-
     private static boolean isPartOfNumber(char c, char prev, char next) {
         return Character.isDigit(prev) && Character.isDigit(next) && (c == '.' || c == ',');
+    }
+
+    private void addFakeNodesIfNeeded(TagNode newTagNode) {
+        String classAttr = newTagNode.getAttributes().getValue(CLASS_ATTRIBUTE);
+        if (classAttr != null) {
+            if (FAKE_NON_BREAKING_SPACE.equals(classAttr)) {
+                new WhiteSpaceNode(newTagNode, "\u00A0");
+            } else if (classAttr.contains(HIDDEN_NOTE)) {
+                new HiddenNoteNode(newTagNode, currentParent);
+            }
+        }
     }
 
     public static boolean isDelimiter(char c) {
@@ -237,11 +249,11 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
         switch (c) {
             // Basic Delimiters
             case '/':
-            case '.':
-            case '!':
-           // case ',':
-            case ';':
-            case '?':
+                // case '.':
+                // case '!':
+                // case ',':
+                // case ';':
+                // case '?':
             case '=':
             case '\'':
             case '"':
@@ -253,10 +265,10 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
             case '(':
             case ')':
             case '&':
-            //case '|':
+                //case '|':
             case '\\':
             case '-':
-            //case '_':
+                //case '_':
             case '+':
             case '*':
             case ':':

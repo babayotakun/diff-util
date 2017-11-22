@@ -1,14 +1,8 @@
 package org.outerj.daisy.diff.html.dom;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -26,9 +20,7 @@ public class TextNodePreprocessor {
     private static final String DISPLAY_NONE_CLASS = "color__800000 display_none";
     private static final String NOT_VISIBLE_ELEMENT = "not-visible-element";
     private static final Pattern CONTENTS_LABEL = Pattern.compile("\\{ОГЛ_[^=]=[*\\d]_([^}]*)}");
-    private static final String HIDDEN_NOTE = "hidden-note";
     private static final int NEXT_NODES_IN_SEGMENT_DEFINITION = 5;
-    private static final String FAKE_NON_BREAKING_SPACE = "fake-non-breaking-space";
     private BodyNode bodyNode;
     private List<TextNode> textNodes;
     private List<Pair<String, List<TextNode>>> segments = new ArrayList<>();
@@ -43,86 +35,6 @@ public class TextNodePreprocessor {
         collectSegmentNodes(bodyNode, maxChunkSize);
         segments.add(new ImmutablePair<>(currentContentsLabel, currentTextNodes));
         return segments;
-    }
-
-    public static List<TextNode> removeUnprocessableNodes(TagNode parent, List<TextNode> textNodes) {
-        long start = System.currentTimeMillis();
-        Map<TextNode, TextNode> textNodesToReplace = new HashMap<>();
-        Set<TextNode> textNodesToRemove = new HashSet<>();
-
-        removeUnprocessableNodesRecursive(parent, textNodesToRemove);
-        markAllHiddenNotesAsAlwaysDifferent(parent, textNodesToRemove, textNodesToReplace);
-        ArrayList<TextNode> newNodes = new ArrayList<>(textNodes.size() - textNodesToRemove.size());
-        for (TextNode node : textNodes) {
-            if (!(textNodesToRemove.contains(node))) {
-                newNodes.add(textNodesToReplace.getOrDefault(node, node));
-            }
-        }
-
-        LOGGER.info("Remove unprocessable nodes in {} ms", System.currentTimeMillis() - start);
-        return newNodes;
-    }
-
-    private static void removeUnprocessableNodesRecursive(TagNode parent, Set<TextNode> textNodesToRemove) {
-        Iterator<Node> iterator = parent.iterator();
-        while (iterator.hasNext()) {
-            Node current = iterator.next();
-            if (current instanceof TagNode) {
-                TagNode currentTag = (TagNode) current;
-                String classAttr = currentTag.getAttributes().getValue(CLASS_ATTRIBUTE);
-                if (isHiddenElement(currentTag)) {
-                    for (Node child : currentTag) {
-                        if (child instanceof TextNode) {
-                            textNodesToRemove.add((TextNode) child);
-                        }
-                    }
-                } else {
-                    removeUnprocessableNodesRecursive(currentTag, textNodesToRemove);
-                }
-            }
-        }
-    }
-
-    private static void markAllHiddenNotesAsAlwaysDifferent(TagNode parent,
-                                                            Set<TextNode> textNodesToRemove,
-                                                            Map<TextNode, TextNode> textNodesToReplace) {
-        for (int i = 0; i < parent.getNbChildren(); i++) {
-            Node current = parent.getChild(i);
-            if (current instanceof TagNode) {
-                TagNode currentTag = (TagNode) current;
-                String classAttr = currentTag.getAttributes().getValue(CLASS_ATTRIBUTE);
-                if (classAttr != null && classAttr.contains(HIDDEN_NOTE)) {
-                    TextNode fakeNode = new HiddenNoteNode(currentTag, parent);
-                    deleteAllTextNodesRecursiveWithReplacement(
-                        currentTag,
-                        fakeNode,
-                        new AtomicBoolean(true),
-                        textNodesToRemove,
-                        textNodesToReplace);
-                } else {
-                    markAllHiddenNotesAsAlwaysDifferent(currentTag, textNodesToRemove, textNodesToReplace);
-                }
-            }
-        }
-    }
-
-    private static void deleteAllTextNodesRecursiveWithReplacement(TagNode parent,
-                                                                   TextNode replacement,
-                                                                   AtomicBoolean onlyOnceMarker,
-                                                                   Set<TextNode> textNodesToRemove,
-                                                                   Map<TextNode, TextNode> textNodesToReplace) {
-        for (Node child : parent) {
-            if (child instanceof TextNode && !(child instanceof HiddenNoteNode)) {
-                if (onlyOnceMarker.get()) {
-                    textNodesToReplace.put((TextNode) child, replacement);
-                    onlyOnceMarker.set(false);
-                } else {
-                    textNodesToRemove.add((TextNode) child);
-                }
-            } else if (child instanceof TagNode && !isHiddenElement((TagNode) child)) {
-                deleteAllTextNodesRecursiveWithReplacement((TagNode) child, replacement, onlyOnceMarker, textNodesToRemove, textNodesToReplace);
-            }
-        }
     }
 
     private String currentContentsLabel = "0";
@@ -191,12 +103,6 @@ public class TextNodePreprocessor {
             }
         }
         return allChildrenAreHidden;
-    }
-
-    static boolean isNotVisibleElement(TagNode tag) {
-        return Optional.ofNullable(tag.getAttributes().getValue(CLASS_ATTRIBUTE))
-            .map(NOT_VISIBLE_ELEMENT::equals)
-            .orElse(false);
     }
 
     private boolean isTextNodeContainingText(Node node, String text) {
