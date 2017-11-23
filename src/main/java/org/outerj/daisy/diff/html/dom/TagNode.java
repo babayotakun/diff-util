@@ -47,6 +47,15 @@ public class TagNode extends Node implements Iterable<Node> {
     private Attributes attributes;
     private Boolean hiddenFlag = null;
     private Boolean recursiveHiddenFlag = null;
+    private Boolean deletedSetMark = null;
+
+    public Boolean isDeletedSetMark() {
+        return deletedSetMark;
+    }
+
+    public void setDeletedSetMark(Boolean deletedSetMark) {
+        this.deletedSetMark = deletedSetMark;
+    }
 
     public Boolean getHiddenFlag() {
         return hiddenFlag;
@@ -141,6 +150,10 @@ public class TagNode extends Node implements Iterable<Node> {
 
     public Node getChild(int i) {
         return children.get(i);
+    }
+
+    public List<Node> getChildren() {
+        return children;
     }
 
     /**
@@ -547,6 +560,9 @@ public class TagNode extends Node implements Iterable<Node> {
     }
 
     public double getMatchRatio(TagNode other) {
+        if (this.getNbChildren() > 1000 || other.getNbChildren() > 1000) {
+            return 0.0;
+        }
         TextOnlyComparator txtComp = new TextOnlyComparator(other);
         return txtComp.getMatchRatio(new TextOnlyComparator(this));
     }

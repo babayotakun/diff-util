@@ -84,7 +84,7 @@ public class TextNodePreprocessor {
         return null;
     }
 
-    static boolean isHiddenElement(TagNode tag) {
+    public static boolean isHiddenElement(TagNode tag) {
         if (tag.getHiddenFlag() != null) {
             return tag.getHiddenFlag();
         }
@@ -95,7 +95,7 @@ public class TextNodePreprocessor {
         return isHidden;
     }
 
-    static boolean isHiddenElementRecursive(TagNode tag) {
+    public static boolean isHiddenElementRecursive(TagNode tag) {
         if (isHiddenElement(tag)) {
             return true;
         }

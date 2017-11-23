@@ -20,18 +20,25 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.compare.rangedifferencer.IRangeComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparatorResult;
 import org.outerj.daisy.diff.html.dom.BodyNode;
 import org.outerj.daisy.diff.html.dom.DomTree;
+import org.outerj.daisy.diff.html.dom.HiddenNoteNode;
 import org.outerj.daisy.diff.html.dom.Node;
+import org.outerj.daisy.diff.html.dom.SeparatingNode;
 import org.outerj.daisy.diff.html.dom.TagNode;
 import org.outerj.daisy.diff.html.dom.TextNode;
 import org.outerj.daisy.diff.html.dom.helper.LastCommonParentResult;
 import org.outerj.daisy.diff.html.modification.Modification;
 import org.outerj.daisy.diff.html.modification.ModificationType;
+
+import static org.outerj.daisy.diff.html.dom.DomTreeBuilder.FAKE_NON_BREAKING_SPACE;
+import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isHiddenElement;
+import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isHiddenElementRecursive;
 
 /**
  * A comparator that generates a DOM tree of sorts from handling SAX events.
@@ -217,6 +224,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
 
         List<Modification> nextLastModified = new ArrayList<Modification>();
 
+        List<Node> initialDeletedNodes = new ArrayList<>(end - start);
         for (int i = start; i < end; i++) {
             Modification mod = new Modification(ModificationType.REMOVED, outputFormat);
             mod.setID(deletedID);
@@ -227,15 +235,18 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
             // elements
             // to this tree!
             oldComp.getTextNode(i).setModification(mod);
+            initialDeletedNodes.add(oldComp.getTextNode(i));
         }
         oldComp.getTextNode(start).getModification().setFirstOfID(true);
 
-        List<Node> deletedNodes = getDeletedNodes(oldComp, start);
-
+        List<Node> deletedNodes = getDeletedNodes(initialDeletedNodes);
+        //deletedNodes = getDeletedNodes(oldComp, start);
         // helps in case of non-formatted text changed to the usual.
-        boolean onlyNonBreakingSpaces = deletedNodes.stream().filter(TextNode.class::isInstance)
-            .map(node -> ((TextNode) node).getText())
-            .allMatch(text -> StringUtils.containsOnly(text, '\u00A0'));
+        boolean onlyNonBreakingSpaces = deletedNodes.stream()
+            .allMatch(node ->
+                (TextNode.class.isInstance(node) && StringUtils.containsOnly(((TextNode) node).getText(), '\u00A0'))
+                    || (TagNode.class.isInstance(node) && Objects.equals(FAKE_NON_BREAKING_SPACE,
+                    ((TagNode) node).getAttributes().getValue(TagNode.CLASS_ATTRIBUTE))));
         if (onlyNonBreakingSpaces) {
             deletedNodes = new ArrayList<>();
         }
@@ -362,6 +373,50 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         }
         lastModified = nextLastModified;
         deletedID++;
+    }
+
+    private List<Node> getDeletedNodes(List<Node> initialDeletedNodes) {
+        List<Node> deletedNodes = new ArrayList<>();
+        boolean parentWasAdded;
+        do {
+            parentWasAdded = false;
+            for (Node text : initialDeletedNodes) {
+                TagNode possiblyDeletedParent = text.getParent();
+                // was processed
+                if (possiblyDeletedParent.isDeletedSetMark() != null && possiblyDeletedParent.isDeletedSetMark()) {
+                    continue;
+                }
+                boolean parentWasDeleted = possiblyDeletedParent.isDeletedSetMark() == null
+                    && possiblyDeletedParent.getChildren().size() < 1000
+                    && possiblyDeletedParent.getChildren().stream().allMatch(this::wasDeleted);
+                if (parentWasDeleted) {
+                    deletedNodes.add(possiblyDeletedParent);
+                    parentWasAdded = true;
+                    possiblyDeletedParent.setDeletedSetMark(true);
+                } else {
+                    deletedNodes.add(text);
+                    possiblyDeletedParent.setDeletedSetMark(false);
+                }
+            }
+
+            if (parentWasAdded) {
+                initialDeletedNodes = deletedNodes;
+                deletedNodes = new ArrayList<>();
+            }
+
+        } while (parentWasAdded);
+        return deletedNodes;
+    }
+
+    private boolean wasDeleted(Node child) {
+        boolean hidden = child instanceof TagNode
+            && ((isHiddenElement((TagNode) child) || isHiddenElementRecursive((TagNode) child))
+            || ((TagNode) child).getChildren().stream().allMatch(this::wasDeleted));
+        boolean note = child instanceof HiddenNoteNode || child instanceof SeparatingNode;
+        boolean deleted = child instanceof TextNode
+            && ((TextNode) child).getModification().getType() == ModificationType.REMOVED
+            && ((TextNode) child).getModification().getID() == deletedID;
+        return hidden || deleted || note;
     }
 
     private List<Node> getDeletedNodes(TextNodeComparator oldComp, int nodeNumber) {
