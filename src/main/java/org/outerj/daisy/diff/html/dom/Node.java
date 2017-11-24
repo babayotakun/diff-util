@@ -88,11 +88,13 @@ public abstract class Node {
     }
 
     private boolean isNotMetadataTag(TagNode ancestor) {
-        return !ancestor.getQName().equals("div") || ancestor.getAttributes().getValue("align") == null;
+        return !ancestor.getQName().equals("body")
+            && !ancestor.getQName().equals("html")
+            && (!ancestor.getQName().equals("div") || ancestor.getAttributes().getValue("align") == null);
     }
 
     //change for correct insertion of the deleted nodes
-    
+
     /**
      * "equals" method should work differently for 
      * the case where the compared nodes are from the same tree,
@@ -148,7 +150,7 @@ public abstract class Node {
                 i++;
             }
         }
- 
+
         result.setLastCommonParentDepth(i - 1);
         result.setLastCommonParent(myParents.get(i - 1));
 
