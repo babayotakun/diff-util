@@ -18,8 +18,9 @@ package org.outerj.daisy.diff.html.dom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.outerj.daisy.diff.html.dom.helper.LastCommonParentResult;
+
+import static java.util.stream.Collectors.toList;
 
 /**
  * Represents any element in the DOM tree of a HTML file.
@@ -83,7 +84,11 @@ public abstract class Node {
             ancestors.add(ancestor);
         }
         Collections.reverse(ancestors);
-        return ancestors;
+        return ancestors.stream().filter(this::isNotMetadataTag).collect(toList());
+    }
+
+    private boolean isNotMetadataTag(TagNode ancestor) {
+        return !ancestor.getQName().equals("div") || ancestor.getAttributes().getValue("align") == null;
     }
 
     //change for correct insertion of the deleted nodes

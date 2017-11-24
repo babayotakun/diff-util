@@ -43,16 +43,7 @@ public class ChunkCreator {
             if (rightIndex > -1 && lastRightIndex < rightIndex) {
                 segmentsRight.subList(lastRightIndex, rightIndex).stream().map(Pair::getRight).forEach(currentRight::addAll);
                 segmentsLeft.subList(lastLeftIndex, leftIndex).stream().map(Pair::getRight).forEach(currentLeft::addAll);
-                if (currentLeft.size() > maxChunkSize || currentRight.size() > maxChunkSize) {
-                    int partCount = Math.max(currentLeft.size() / maxChunkSize + 1, currentRight.size() / maxChunkSize + 1);
-                    List<List<TextNode>> leftChunkParts = Lists.partition(currentLeft, (int) Math.ceil((double) currentLeft.size() / partCount));
-                    List<List<TextNode>> rightChunkParts = Lists.partition(currentRight, (int) Math.ceil((double) currentRight.size() / partCount));
-                    for (int currentPart = 0; currentPart < partCount; currentPart++) {
-                        result.add(new ImmutablePair<>(leftChunkParts.get(currentPart), rightChunkParts.get(currentPart)));
-                    }
-                } else {
-                    result.add(new ImmutablePair<>(currentLeft, currentRight));
-                }
+                addToResult(maxChunkSize, currentLeft, currentRight, result);
                 currentLeft = new ArrayList<>();
                 currentRight = new ArrayList<>();
                 lastLeftIndex = leftIndex;
@@ -63,8 +54,21 @@ public class ChunkCreator {
         currentRight = new ArrayList<>();
         segmentsRight.subList(lastRightIndex, rightSegmentIds.size()).stream().map(Pair::getRight).forEach(currentRight::addAll);
         segmentsLeft.subList(lastLeftIndex, leftSegmentIds.size()).stream().map(Pair::getRight).forEach(currentLeft::addAll);
-        result.add(new ImmutablePair<>(currentLeft, currentRight));
+        addToResult(maxChunkSize, currentLeft, currentRight, result);
         return result;
+    }
+
+    private void addToResult(int maxChunkSize, List<TextNode> currentLeft, List<TextNode> currentRight, List<Pair<List<TextNode>, List<TextNode>>> result) {
+        if (currentLeft.size() > maxChunkSize || currentRight.size() > maxChunkSize) {
+            int partCount = Math.max(currentLeft.size() / maxChunkSize + 1, currentRight.size() / maxChunkSize + 1);
+            List<List<TextNode>> leftChunkParts = Lists.partition(currentLeft, (int) Math.ceil((double) currentLeft.size() / partCount));
+            List<List<TextNode>> rightChunkParts = Lists.partition(currentRight, (int) Math.ceil((double) currentRight.size() / partCount));
+            for (int currentPart = 0; currentPart < partCount; currentPart++) {
+                result.add(new ImmutablePair<>(leftChunkParts.get(currentPart), rightChunkParts.get(currentPart)));
+            }
+        } else {
+            result.add(new ImmutablePair<>(currentLeft, currentRight));
+        }
     }
 
     private Collection<Pair<List<TextNode>, List<TextNode>>> reduceToChunks(Collection<Pair<List<TextNode>, List<TextNode>>> toChop, int chunkSize) {
