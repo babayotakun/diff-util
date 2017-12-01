@@ -346,9 +346,11 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
             if (prevResult.getLastCommonParentDepth() > nextResult.getLastCommonParentDepth()) {
 
                 // Inserting at the front
-                if (prevResult.isSplittingNeeded()) {
-                    prevLeaf.getParent().splitUntill(prevResult.getLastCommonParent(), prevLeaf, true);
-                }
+
+                // Temporal disabled.
+               /* if (prevResult.isSplittingNeeded()) {
+                        prevLeaf.getParent().splitUntill(prevResult.getLastCommonParent(), prevLeaf, true);
+                }*/
                 prevLeaf = deletedNodes.remove(0).copyTree();
                 prevLeaf.setParent(prevResult.getLastCommonParent());
                 prevResult.getLastCommonParent().addChild(prevResult.getIndexInLastCommonParent() + 1, prevLeaf);
