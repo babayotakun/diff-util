@@ -252,11 +252,11 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
         switch (c) {
             // Basic Delimiters
             case '/':
-                // case '.':
-                // case '!':
-                // case ',':
-                // case ';':
-                // case '?':
+            case '.':
+            case '!':
+            case ',':
+            case ';':
+            case '?':
             case '=':
             case '\'':
             case '"':
