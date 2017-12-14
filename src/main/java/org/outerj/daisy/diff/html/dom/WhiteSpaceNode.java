@@ -37,17 +37,4 @@ public class WhiteSpaceNode extends TextNode {
         } catch (NullPointerException e) {
         }
     }
-
-    public static boolean isWhiteSpace(char c) {
-        switch (c) {
-        case ' ':
-        case '\t':
-        case '\r':
-        case '\n':
-            return true;
-        default:
-            return false;
-        }
-    }
-
 }

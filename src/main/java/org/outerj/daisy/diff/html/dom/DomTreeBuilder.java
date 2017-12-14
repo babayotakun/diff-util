@@ -30,6 +30,7 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
     private static final String SECOND_PART_OF_HIDDEN_NOTES = "plain-insert hidden-note";
     private static final String COLLAPSIBLE_TEXT = "collapsible-text-wrapper";
     private List<TextNode> textNodes = new ArrayList<TextNode>(50);
+    private DelimiterConfigurer delimiterConfigurer = new DelimiterConfigurer();
     private BodyNode bodyNode = new BodyNode();
     private TagNode currentParent = bodyNode;
     private StringBuilder newWord = new StringBuilder();
@@ -160,9 +161,9 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
                 // Do not split numbers like 45,6 and 42.11
                 if (i > 0 && i < start + length - 1 && isPartOfNumber(c, ch[i - 1], ch[i + 1])) {
                     newWord.append(c);
-                } else if (isDelimiter(c)) {
+                } else if (delimiterConfigurer.isDelimiter(c)) {
                     endWord();
-                    if (WhiteSpaceNode.isWhiteSpace(c) && numberOfActivePreTags == 0) {
+                    if (delimiterConfigurer.isWhiteSpace(c) && numberOfActivePreTags == 0) {
                         if (lastSibling != null)
                             lastSibling.setWhiteAfter(true);
                         whiteSpaceBeforeThis = true;
@@ -243,44 +244,6 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
             } else if (classAttr.contains(HIDDEN_NOTE) || classAttr.contains(COLLAPSIBLE_TEXT)) {
                 new HiddenNoteNode(newTagNode, currentParent);
             }
-        }
-    }
-
-    public static boolean isDelimiter(char c) {
-        if (WhiteSpaceNode.isWhiteSpace(c))
-            return true;
-        switch (c) {
-            // Basic Delimiters
-            case '/':
-            case '.':
-            case '!':
-            case ',':
-            case ';':
-            case '?':
-            case '=':
-            case '\'':
-            case '"':
-                // Extra Delimiters
-            case '[':
-            case ']':
-            case '{':
-            case '}':
-            case '(':
-            case ')':
-            case '&':
-                //case '|':
-            case '\\':
-            case '-':
-                //case '_':
-            case '+':
-            case '*':
-            case ':':
-                // &nbsp;
-                // nbsp should not count as whitespace
-            case '\u00A0':
-                return true;
-            default:
-                return false;
         }
     }
 

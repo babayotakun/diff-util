@@ -157,7 +157,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         List<Modification> nextLastModified = new ArrayList<Modification>();
 
         String changes = null;
-        while (i < rightend) {
+        while (i < rightend && j < leftend) {
             AncestorComparator acthis = new AncestorComparator(getTextNode(i).getParentTree());
             AncestorComparator acother = new AncestorComparator(leftComparator.getTextNode(j).getParentTree());
 
