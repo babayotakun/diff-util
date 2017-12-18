@@ -15,6 +15,7 @@
  */
 package org.outerj.daisy.diff.html;
 
+import org.outerj.daisy.diff.html.dom.AttributesCreator;
 import org.outerj.daisy.diff.html.dom.HiddenNoteNode;
 import org.outerj.daisy.diff.html.dom.ImageNode;
 import org.outerj.daisy.diff.html.dom.Node;
@@ -28,8 +29,6 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
-import static org.outerj.daisy.diff.html.dom.TagNode.CLASS_ATTRIBUTE;
-
 /**
  * Takes a branch root and creates an HTML file for it.
  */
@@ -38,11 +37,11 @@ public class HtmlSaxDiffOutput implements DiffOutput {
     private ContentHandler handler;
     private boolean forcedIdForTheNextDifference = false;
 
-    private String prefix;
+    private AttributesCreator attributesCreator;
 
     public HtmlSaxDiffOutput(ContentHandler handler, String name) {
         this.handler = handler;
-        this.prefix = name;
+        attributesCreator = new AttributesCreator(name);
     }
 
     /**
@@ -84,22 +83,10 @@ public class HtmlSaxDiffOutput implements DiffOutput {
             } else if (child instanceof HiddenNoteNode) {
                 TagNode realChild = ((HiddenNoteNode) child).getRealTagNode();
                 Modification mod = ((HiddenNoteNode) child).getModification();
-                String oldClassAttr = realChild.getAttributes().getValue(CLASS_ATTRIBUTE);
-                if (mod.getOutputType() == ModificationType.ADDED) {
-                    AttributesImpl newAttr = new AttributesImpl();
-                    newAttr.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
-                        oldClassAttr + " diff-note-added");
-                    realChild.setAttributes(newAttr);
-                } else {
-                    AttributesImpl newAttr = new AttributesImpl();
-                    newAttr.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
-                        oldClassAttr + " diff-note-removed");
-                    realChild.setAttributes(newAttr);
-                }
+                realChild.setAttributes(attributesCreator.createHiddenNodeAttributes(realChild, mod));
                 realChild.expandWhiteSpace();
                 forcedIdForTheNextDifference = true;
                 generateOutput(realChild);
-
             } else if (child instanceof TextNode) {
                 TextNode textChild = (TextNode) child;
                 Modification mod = textChild.getModification();
@@ -121,70 +108,35 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 // no else because a removed part can just be closed and a new
                 // part can start
                 if (!newStarted && mod.getOutputType() == ModificationType.ADDED) {
-                    AttributesImpl attrs = new AttributesImpl();
-                    attrs.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
-                            "diff-html-added");
                     setFirstOfIdIfNeeded(mod);
-                    if (mod.isFirstOfID()) {
-                        attrs.addAttribute("", "id", "id", "CDATA", mod
-                                .getOutputType()
-                                + "-" + prefix + "-" + mod.getID());
-                    }
-
-                    addAttributes(mod, attrs);
-
+                    AttributesImpl attrs = attributesCreator.createAttributes(mod);
                     handler.startElement("", "span", "span", attrs);
                     newStarted = true;
-                } else if (!changeStarted
-                        && mod.getOutputType() == ModificationType.CHANGED) {
-                    AttributesImpl attrs = new AttributesImpl();
-                    attrs.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
-                            "diff-html-changed");
+                } else if (!changeStarted && mod.getOutputType() == ModificationType.CHANGED) {
                     setFirstOfIdIfNeeded(mod);
-                    if (mod.isFirstOfID()) {
-                        attrs.addAttribute("", "id", "id", "CDATA", mod
-                                .getOutputType()
-                                + "-" + prefix + "-" + mod.getID());
-                    }
-
-                    addAttributes(mod, attrs);
+                    AttributesImpl attrs = attributesCreator.createAttributes(mod);
                     handler.startElement("", "span", "span", attrs);
-
                     changeStarted = true;
                     changeTXT = mod.getChanges();
-                } else if (!remStarted
-                		&& mod.getOutputType() == ModificationType.REMOVED) {
-                	AttributesImpl attrs = new AttributesImpl();
-                	attrs.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
-                	"diff-html-removed");
+                } else if (!remStarted && mod.getOutputType() == ModificationType.REMOVED) {
                     setFirstOfIdIfNeeded(mod);
-                    if (mod.isFirstOfID()) {
-                		attrs.addAttribute("", "id", "id", "CDATA", mod
-                				.getOutputType()
-                				+ "-" + prefix + "-" + mod.getID());
-                	}
-                	addAttributes(mod, attrs);
-                	
+                    AttributesImpl attrs = attributesCreator.createAttributes(mod);
                 	handler.startElement("", "span", "span", attrs);
                 	remStarted = true;
-                } else if (!conflictStarted
-                        && mod.getOutputType() == ModificationType.CONFLICT) {
-                    AttributesImpl attrs = new AttributesImpl();
-                    attrs.addAttribute("", CLASS_ATTRIBUTE, CLASS_ATTRIBUTE, "CDATA",
-                            "diff-html-conflict");
+                } else if (!conflictStarted && mod.getOutputType() == ModificationType.CONFLICT) {
                     setFirstOfIdIfNeeded(mod);
-                    if (mod.isFirstOfID()) {
-                        attrs.addAttribute("", "id", "id", "CDATA", mod
-                                .getOutputType()
-                                + "-" + prefix + "-" + mod.getID());
-                    }
-                    addAttributes(mod, attrs);
-
+                    AttributesImpl attrs = attributesCreator.createAttributes(mod);
                     handler.startElement("", "span", "span", attrs);
                     conflictStarted = true;
                 }
 
                 char[] chars = textChild.getText().toCharArray();
+                if (chars.length == 0) {
+                    // Add a fake character to prevent empty elements from collapsing
+                    // like <span></span> --> <span/>
+                    chars = new char[1];
+                    chars[0] = '\r';
+                }
 
                 if (textChild instanceof ImageNode) {
                     writeImage((ImageNode)textChild);
@@ -242,36 +194,6 @@ public class HtmlSaxDiffOutput implements DiffOutput {
         }
         handler.startElement("", "img", "img", attrs);
         handler.endElement("", "img", "img");
-    }
-
-    private void addAttributes(Modification mod, AttributesImpl attrs) {
-
-        if (mod.getOutputType() == ModificationType.CHANGED) {
-            String changes = mod.getChanges();
-            attrs.addAttribute("", "changes", "changes", "CDATA", changes);
-        }
-
-        String previous;
-        if (mod.getPrevious() == null) {
-            previous = "first-" + prefix;
-        } else {
-            previous = mod.getPrevious().getOutputType() + "-" + prefix + "-"
-                    + mod.getPrevious().getID();
-        }
-        attrs.addAttribute("", "previous", "previous", "CDATA", previous);
-
-        String changeId = mod.getOutputType() + "-" + prefix + "-" + mod.getID();
-        attrs.addAttribute("", "changeId", "changeId", "CDATA", changeId);
-
-        String next;
-        if (mod.getNext() == null) {
-            next = "last-" + prefix;
-        } else {
-            next = mod.getNext().getOutputType() + "-" + prefix + "-"
-                    + mod.getNext().getID();
-        }
-        attrs.addAttribute("", "next", "next", "CDATA", next);
-
     }
 
 }

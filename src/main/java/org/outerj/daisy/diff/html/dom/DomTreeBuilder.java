@@ -240,7 +240,8 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
         String classAttr = newTagNode.getAttributes().getValue(CLASS_ATTRIBUTE);
         if (classAttr != null) {
             if (FAKE_NON_BREAKING_SPACE.equals(classAttr)) {
-                new WhiteSpaceNode(newTagNode, "\u00A0");
+                // Cannot add renderable symbols, because it will cause empty highlighted paragraphs.
+                new WhiteSpaceNode(newTagNode, "");
             } else if (classAttr.contains(HIDDEN_NOTE) || classAttr.contains(COLLAPSIBLE_TEXT)) {
                 new HiddenNoteNode(newTagNode, currentParent);
             }

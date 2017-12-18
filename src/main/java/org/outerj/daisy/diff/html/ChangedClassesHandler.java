@@ -10,6 +10,7 @@ import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
 
 import static java.util.stream.Collectors.toList;
+import static org.outerj.daisy.diff.html.dom.DomTreeBuilder.FAKE_NON_BREAKING_SPACE;
 import static org.outerj.daisy.diff.html.dom.TagNode.CLASS_ATTRIBUTE;
 import static org.outerj.daisy.diff.html.dom.TagNode.OLD_CLASS_ATTRIBUTE;
 import static org.outerj.daisy.diff.html.modification.HtmlLayoutChange.Type.TAG_ADDED;
@@ -35,6 +36,7 @@ public class ChangedClassesHandler {
     private void addClassesToParent(TextNode textNode) {
         List<HtmlLayoutChange> allChanges = textNode.getModification().getHtmlLayoutChanges().stream()
             .filter(change -> PROCESSABLE_CHANGES_TAGS.contains(change.getChangedTagQName()))
+            .filter(change -> !FAKE_NON_BREAKING_SPACE.equals(change.getChangedTagClass()))
             .collect(toList());
         Collections.reverse(allChanges);
 

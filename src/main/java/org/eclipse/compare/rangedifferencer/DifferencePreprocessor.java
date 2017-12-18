@@ -39,11 +39,13 @@ public class DifferencePreprocessor {
 
               Without this expansion there will be ", two, three, four" marked as deleted.
               With this expansion there will be "," changed to "." and "two, three, four." marked as deleted.
+              Note that this expansion is working only if "one," and "four." are in the different paragraphs.
              */
             while (current.leftEnd() < left.getTextNodes().size() - 1
                 && current.rightEnd() < right.getTextNodes().size() - 1
                 && delimiterConfigurer.isDelimiter(left.getTextNode(current.leftEnd()).getText())
-                && delimiterConfigurer.isDelimiter(left.getTextNode(current.leftStart()).getText())) {
+                && delimiterConfigurer.isDelimiter(left.getTextNode(current.leftStart()).getText())
+                && left.getTextNode(current.leftEnd()).getParent() != left.getTextNode(current.leftStart()).getParent()) {
                 current.fRightLength++;
                 current.fLeftLength++;
             }
@@ -68,16 +70,19 @@ public class DifferencePreprocessor {
      * based on some deep magic ({@link DifferencePreprocessor#score(int...)}) from daisy diff lib developers.
      */
     private List<RangeDifference> applyUnitePreProcessing(RangeDifference[] differences) {
-        List<RangeDifference> newRanges = new LinkedList<>();
+        List<RangeDifference> newRanges = new LinkedList<RangeDifference>();
 
         for (int i = 0; i < differences.length; i++) {
 
+            int ancestorStart = differences[i].ancestorStart();
+            int ancestorEnd = differences[i].ancestorEnd();
             int leftStart = differences[i].leftStart();
             int leftEnd = differences[i].leftEnd();
             int rightStart = differences[i].rightStart();
             int rightEnd = differences[i].rightEnd();
             int kind = differences[i].kind();
 
+            int ancestorLength = ancestorEnd - ancestorStart;
             int leftLength = leftEnd - leftStart;
             int rightLength = rightEnd - rightStart;
 
@@ -87,15 +92,19 @@ public class DifferencePreprocessor {
                 > (differences[i + 1].leftStart() - leftEnd)) {
                 leftEnd = differences[i + 1].leftEnd();
                 rightEnd = differences[i + 1].rightEnd();
+                ancestorEnd = differences[i + 1].ancestorEnd();
                 leftLength = leftEnd - leftStart;
                 rightLength = rightEnd - rightStart;
+                ancestorLength = ancestorEnd - ancestorStart;
                 i++;
             }
 
             newRanges.add(new RangeDifference(kind,
                 rightStart, rightLength,
-                leftStart, leftLength));
+                leftStart, leftLength,
+                ancestorStart, ancestorLength));
         }
+
         return newRanges;
     }
 
