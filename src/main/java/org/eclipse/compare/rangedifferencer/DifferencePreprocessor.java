@@ -32,23 +32,8 @@ public class DifferencePreprocessor {
      */
     private void applyShiftPreProcessing(List<RangeDifference> differences) {
         for (RangeDifference current : differences) {
-            /*
-              Apply length expansion in delimiter cases like:
-              old: one, two, three, four.
-              new: one.
+            applyDelimiterExpansion(current);
 
-              Without this expansion there will be ", two, three, four" marked as deleted.
-              With this expansion there will be "," changed to "." and "two, three, four." marked as deleted.
-              Note that this expansion is working only if "one," and "four." are in the different paragraphs.
-             */
-            while (current.leftEnd() < left.getTextNodes().size() - 1
-                && current.rightEnd() < right.getTextNodes().size() - 1
-                && delimiterConfigurer.isDelimiter(left.getTextNode(current.leftEnd()).getText())
-                && delimiterConfigurer.isDelimiter(left.getTextNode(current.leftStart()).getText())
-                && left.getTextNode(current.leftEnd()).getParent() != left.getTextNode(current.leftStart()).getParent()) {
-                current.fRightLength++;
-                current.fLeftLength++;
-            }
             /*
               Apply right start shift in delimiter cases like:
               old: two five
@@ -63,6 +48,44 @@ public class DifferencePreprocessor {
                 current.fRightStart--;
             }
         }
+    }
+
+    /**
+     Apply length expansion in delimiter cases like:
+     old: one, two, three, four.
+     new: one.
+
+     Without this expansion there will be ", two, three, four" marked as deleted.
+
+     With this expansion there will be "," changed to "." and "two, three, four." marked as deleted.
+     Note that this expansion is working only if "one," and "four." are in the different paragraphs.
+
+     Same expansion is applied with added parts.
+     */
+    private void applyDelimiterExpansion(RangeDifference current) {
+        while (canExpand(current) && delimitersOnMargins(current, true) && marginsInDifferentParagraphs(current, true)) {
+            current.fRightLength++;
+            current.fLeftLength++;
+        }
+        while (canExpand(current) && delimitersOnMargins(current, false) && marginsInDifferentParagraphs(current, false)) {
+            current.fRightLength++;
+            current.fLeftLength++;
+        }
+    }
+
+    private boolean delimitersOnMargins(RangeDifference current, boolean forLeft) {
+        return delimiterConfigurer.isDelimiter((forLeft ? left : right).getTextNode(forLeft ? current.leftEnd() : current.rightEnd()).getText())
+            && delimiterConfigurer.isDelimiter((forLeft ? left : right).getTextNode(forLeft ? current.leftStart() : current.rightStart()).getText());
+    }
+
+    private boolean canExpand(RangeDifference current) {
+        return current.leftEnd() < left.getTextNodes().size() - 1
+            && current.rightEnd() < right.getTextNodes().size() - 1;
+    }
+
+    private boolean marginsInDifferentParagraphs(RangeDifference current, boolean forLeft) {
+        return (forLeft ? left : right).getTextNode(forLeft ? current.leftEnd() : current.rightEnd()).getParent()
+            != (forLeft ? left : right).getTextNode(forLeft ? current.leftStart() : current.rightStart()).getParent();
     }
 
     /**

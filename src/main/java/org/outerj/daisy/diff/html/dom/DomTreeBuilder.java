@@ -158,8 +158,8 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
         if (splitByWords) {
             for (int i = start; i < start + length; i++) {
                 char c = ch[i];
-                // Do not split numbers like 45,6 and 42.11
-                if (i > 0 && i < start + length - 1 && isPartOfNumber(c, ch[i - 1], ch[i + 1])) {
+                // Do not split numbers like 45,6 and 42.11, adn 1.1. like paragraph
+                if (i > 0 && i < start + length - 1 && isPartOfNumber(c, ch[i - 1])) {
                     newWord.append(c);
                 } else if (delimiterConfigurer.isDelimiter(c)) {
                     endWord();
@@ -232,8 +232,8 @@ public class DomTreeBuilder extends DefaultHandler implements DomTree {
     private void addWhitespaceNode() {
         new WhiteSpaceNode(currentParent, "");
     }
-    private static boolean isPartOfNumber(char c, char prev, char next) {
-        return Character.isDigit(prev) && Character.isDigit(next) && (c == '.' || c == ',');
+    private static boolean isPartOfNumber(char c, char prev) {
+        return Character.isDigit(prev) && (c == '.' || c == ',');
     }
 
     private void addFakeNodesIfNeeded(TagNode newTagNode) {
