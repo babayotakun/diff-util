@@ -240,7 +240,6 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         oldComp.getTextNode(start).getModification().setFirstOfID(true);
 
         List<Node> deletedNodes = getDeletedNodes(initialDeletedNodes);
-        //deletedNodes = getDeletedNodes(oldComp, start);
         // helps in case of non-formatted text changed to the usual.
         boolean onlyNonBreakingSpaces = deletedNodes.stream()
             .allMatch(node ->
@@ -295,8 +294,8 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         else if (before < getRangeCount())
             nextLeaf = getTextNode(before);
 
-        while (deletedNodes.size() > 0) {
-            LastCommonParentResult prevResult, nextResult;
+        while (!deletedNodes.isEmpty()) {
+            LastCommonParentResult prevResult;
             if (prevLeaf != null) {
                 prevResult = prevLeaf.getLastCommonParent(deletedNodes.get(0));
             } else {
@@ -304,6 +303,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
                 prevResult.setLastCommonParent(getBodyNode());
                 prevResult.setIndexInLastCommonParent(-1);
             }
+            LastCommonParentResult nextResult;
             if (nextLeaf != null) {
                 nextResult = nextLeaf.getLastCommonParent(deletedNodes.get(deletedNodes.size() - 1));
             } else {
@@ -330,7 +330,6 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
                         .get(deletedNodes.size() - 1)
                         .getParent()
                         .getMatchRatio(nextResult.getLastCommonParent());
-                    //nextResult.setLastCommonParentDepth(nextResult.getLastCommonParentDepth() + 1);
 
                     if (distancePrev <= distanceNext) {
                         // insert after the previous node
@@ -421,10 +420,6 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         return hidden || deleted || note;
     }
 
-    private List<Node> getDeletedNodes(TextNodeComparator oldComp, int nodeNumber) {
-        return oldComp.getBodyNode().getMinimalDeletedSet(deletedID);
-    }
-
     /**
      * Marks the given range as deleted. In the output, the range will be
      * formatted as "removed".
@@ -448,7 +443,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
     }
 
     private void linkPreviousModificationsWithCurrent(Modification mod) {
-        if (lastModified.size() > 0) {
+        if (!lastModified.isEmpty()) {
             mod.setPrevious(lastModified.get(0));
             if (lastModified.get(0).getNext() == null) {
                 for (Modification lastMod : lastModified) {

@@ -26,9 +26,9 @@ import org.outerj.daisy.diff.html.dom.TagNode;
 
 public class TagToStringFactory {
 
-    private static final Set<String> containerTags = new HashSet<String>();
+    private static final Set<String> containerTags = new HashSet<>();
 
-    private static final Set<String> styleTags = new HashSet<String>();
+    private static final Set<String> styleTags = new HashSet<>();
 
     static {
         containerTags.add("html");
@@ -79,10 +79,12 @@ public class TagToStringFactory {
     public TagToString create(TagNode node, Locale locale) {
         TagChangeSematic sem = getChangeSemantic(node.getQName());
         ResourceBundle bundle = ResourceBundle.getBundle(BUNDLE_NAME, locale);
-        if (node.getQName().equalsIgnoreCase("a")) //$NON-NLS-1$
+        if (node.getQName().equalsIgnoreCase("a")) {
             return new AnchorToString(node, sem, bundle);
-        if (node.getQName().equalsIgnoreCase("img")) //$NON-NLS-1$
+        }
+        if (node.getQName().equalsIgnoreCase("img")) {
             return new NoContentTagToString(node, sem, bundle);
+        }
         return new TagToString(node, sem, bundle);
     }
 

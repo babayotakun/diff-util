@@ -585,14 +585,12 @@ public class TagNode extends Node implements Iterable<Node> {
             }
 
             if (!spaceAdded && child.isWhiteBefore()) {
-                WhiteSpaceNode ws = new WhiteSpaceNode(null, " ", child
-                        .getLeftMostChild());
+                WhiteSpaceNode ws = new WhiteSpaceNode(null, " ", child.getLeftMostChild());
                 ws.setParent(this);
                 addChild(i + (shift++), ws);
             }
             if (child.isWhiteAfter()) {
-                WhiteSpaceNode ws = new WhiteSpaceNode(null, " ", child
-                        .getRightMostChild());
+                WhiteSpaceNode ws = new WhiteSpaceNode(null, " ", child.getRightMostChild());
                 ws.setParent(this);
                 addChild(i + 1 + (shift++), ws);
                 spaceAdded = true;

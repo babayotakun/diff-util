@@ -25,16 +25,12 @@ public class WhiteSpaceNode extends TextNode {
 
     public WhiteSpaceNode(TagNode parent, String s, Node like) {
         this(parent, s);
-
-        try {
-            TextNode textNode = (TextNode) like;
-            Modification newModification = textNode.getModification().clone();
-
-            newModification.setFirstOfID(false);
-            setModification(newModification);
-
-        } catch (ClassCastException e) {
-        } catch (NullPointerException e) {
+        if (like instanceof ImageNode) {
+            return;
         }
+        TextNode textNode = (TextNode) like;
+        Modification newModification = textNode.getModification().clone();
+        newModification.setFirstOfID(false);
+        setModification(newModification);
     }
 }

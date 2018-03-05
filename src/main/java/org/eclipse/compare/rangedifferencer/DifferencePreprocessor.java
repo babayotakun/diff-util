@@ -47,6 +47,22 @@ public class DifferencePreprocessor {
                 && right.getTextNode(current.rightStart() - 1).isSameText(right.getTextNode(current.rightEnd() - 1))) {
                 current.fRightStart--;
             }
+
+            /*
+              Apply shrink of the changed text:
+              old: aa text text text text
+              new: aa new new new new aa text text
+
+              In that case because of the unite processing we have
+              <added>aa new new new new aa</added><removed>aa</removed>text text text text
+              So we need to shrink both deleted and added.
+             */
+            while (current.rightLength() > 0
+                && current.leftLength() > 0
+                && left.getTextNode(current.leftEnd() - 1).isSameText(right.getTextNode(current.rightEnd() - 1))) {
+                current.fLeftLength--;
+                current.fRightLength--;
+            }
         }
     }
 
@@ -93,7 +109,7 @@ public class DifferencePreprocessor {
      * based on some deep magic ({@link DifferencePreprocessor#score(int...)}) from daisy diff lib developers.
      */
     private List<RangeDifference> applyUnitePreProcessing(RangeDifference[] differences) {
-        List<RangeDifference> newRanges = new LinkedList<RangeDifference>();
+        List<RangeDifference> newRanges = new LinkedList<>();
 
         for (int i = 0; i < differences.length; i++) {
 
@@ -132,8 +148,9 @@ public class DifferencePreprocessor {
     }
 
     private double score(int... numbers) {
-        if ((numbers[0] == 0 && numbers[1] == 0) || (numbers[2] == 0 && numbers[3] == 0))
+        if ((numbers[0] == 0 && numbers[1] == 0) || (numbers[2] == 0 && numbers[3] == 0)) {
             return 0;
+        }
 
         double d = 0;
         for (double number : numbers) {

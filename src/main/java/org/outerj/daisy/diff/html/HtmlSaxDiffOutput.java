@@ -50,15 +50,14 @@ public class HtmlSaxDiffOutput implements DiffOutput {
     public void generateOutput(TagNode node) throws SAXException {
 
         if (!node.getQName().equalsIgnoreCase("img")
-                && !node.getQName().equalsIgnoreCase("body")) {
+            && !node.getQName().equalsIgnoreCase("body")) {
             handler.startElement("", node.getQName(), node.getQName(), node
-                    .getAttributes());
+                .getAttributes());
         }
 
         boolean newStarted = false;
         boolean remStarted = false;
         boolean changeStarted = false;
-        boolean conflictStarted = false;
         String changeTXT = "";
 
         for (Node child : node) {
@@ -75,9 +74,6 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 } else if (remStarted) {
                     handler.endElement("", "span", "span");
                     remStarted = false;
-                } else if (conflictStarted) {
-                	handler.endElement("", "span", "span");
-                	conflictStarted = false;
                 }
                 generateOutput(((TagNode) child));
             } else if (child instanceof HiddenNoteNode) {
@@ -100,10 +96,7 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 } else if (remStarted && (mod.getOutputType() != ModificationType.REMOVED || mod.isFirstOfID())) {
                     handler.endElement("", "span", "span");
                     remStarted = false;
-                } else if (conflictStarted && (mod.getOutputType() != ModificationType.CONFLICT || mod.isFirstOfID())) {
-                    handler.endElement("", "span", "span");
-                    conflictStarted = false;
-                }                		
+                }
 
                 // no else because a removed part can just be closed and a new
                 // part can start
@@ -121,13 +114,8 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 } else if (!remStarted && mod.getOutputType() == ModificationType.REMOVED) {
                     setFirstOfIdIfNeeded(mod);
                     AttributesImpl attrs = attributesCreator.createAttributes(mod);
-                	handler.startElement("", "span", "span", attrs);
-                	remStarted = true;
-                } else if (!conflictStarted && mod.getOutputType() == ModificationType.CONFLICT) {
-                    setFirstOfIdIfNeeded(mod);
-                    AttributesImpl attrs = attributesCreator.createAttributes(mod);
                     handler.startElement("", "span", "span", attrs);
-                    conflictStarted = true;
+                    remStarted = true;
                 }
 
                 char[] chars = textChild.getText().toCharArray();
@@ -139,7 +127,7 @@ public class HtmlSaxDiffOutput implements DiffOutput {
                 }
 
                 if (textChild instanceof ImageNode) {
-                    writeImage((ImageNode)textChild);
+                    writeImage((ImageNode) textChild);
                 } else {
                     handler.characters(chars, 0, chars.length);
                 }
@@ -156,13 +144,10 @@ public class HtmlSaxDiffOutput implements DiffOutput {
         } else if (remStarted) {
             handler.endElement("", "span", "span");
             remStarted = false;
-        } else if (conflictStarted) {
-        	handler.endElement("", "span", "span");
-        	conflictStarted = false;
         }
 
         if (!node.getQName().equalsIgnoreCase("img")
-                && !node.getQName().equalsIgnoreCase("body")) {
+            && !node.getQName().equalsIgnoreCase("body")) {
             // Add a fake character to prevent empty elements from collapsing
             // like <span></span> --> <span/>
             char[] chars = new char[1];
@@ -184,13 +169,10 @@ public class HtmlSaxDiffOutput implements DiffOutput {
         AttributesImpl attrs = imgNode.getAttributes();
         if (imgNode.getModification().getOutputType() == ModificationType.REMOVED) {
             attrs.addAttribute("", "changeType", "changeType", "CDATA",
-                    "diff-removed-image");
+                "diff-removed-image");
         } else if (imgNode.getModification().getOutputType() == ModificationType.ADDED) {
             attrs.addAttribute("", "changeType", "changeType", "CDATA",
-                    "diff-added-image");
-        } else if (imgNode.getModification().getOutputType() == ModificationType.CONFLICT) {
-        	attrs.addAttribute("", "changeType", "changeType", "CDATA",
-        	"diff-conflict-image");
+                "diff-added-image");
         }
         handler.startElement("", "img", "img", attrs);
         handler.endElement("", "img", "img");

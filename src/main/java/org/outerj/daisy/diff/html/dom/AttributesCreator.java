@@ -13,7 +13,6 @@ public class AttributesCreator {
     private static final String ADDED_CLASS = "diff-html-added";
     private static final String REMOVED_CLASS = "diff-html-removed";
     private static final String CHANGED_CLASS = "diff-html-changed";
-    private static final String CONFLICT_CLASS = "diff-html-conflict";
     private static final String NEXT_CHANGE_ID_ATTR = "next";
     private static final String CURRENT_CHANGE_ID_ATTR = "changeId";
     private static final String PREV_CHANGE_ID_ATTR = "previous";
@@ -75,8 +74,6 @@ public class AttributesCreator {
                 return ADDED_CLASS;
             case REMOVED:
                 return REMOVED_CLASS;
-            case CONFLICT:
-                return CONFLICT_CLASS;
             case NONE:
             default:
                 throw new IllegalArgumentException("Not supported difference type!");
