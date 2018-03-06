@@ -32,6 +32,24 @@ public class DifferencePreprocessor {
      */
     private void applyShiftPreProcessing(List<RangeDifference> differences) {
         for (RangeDifference current : differences) {
+             /*
+              Apply shrink of the changed text:
+              old: aa text text text text
+              new: aa new new new new aa text text
+
+              In that case because of the unite processing we have
+              <added>aa new new new new aa</added><removed>aa</removed>text text text text
+              So we need to shrink both deleted and added.
+
+              NOTE: Should be applied before any expansion!
+             */
+            while (current.rightLength() > 0
+                && current.leftLength() > 0
+                && left.getTextNode(current.leftEnd() - 1).isSameText(right.getTextNode(current.rightEnd() - 1))) {
+                current.fLeftLength--;
+                current.fRightLength--;
+            }
+
             applyDelimiterExpansion(current);
 
             /*
@@ -46,22 +64,6 @@ public class DifferencePreprocessor {
                 && current.rightStart() > 0
                 && right.getTextNode(current.rightStart() - 1).isSameText(right.getTextNode(current.rightEnd() - 1))) {
                 current.fRightStart--;
-            }
-
-            /*
-              Apply shrink of the changed text:
-              old: aa text text text text
-              new: aa new new new new aa text text
-
-              In that case because of the unite processing we have
-              <added>aa new new new new aa</added><removed>aa</removed>text text text text
-              So we need to shrink both deleted and added.
-             */
-            while (current.rightLength() > 0
-                && current.leftLength() > 0
-                && left.getTextNode(current.leftEnd() - 1).isSameText(right.getTextNode(current.rightEnd() - 1))) {
-                current.fLeftLength--;
-                current.fRightLength--;
             }
         }
     }
