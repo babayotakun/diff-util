@@ -129,6 +129,7 @@ public class DifferencePreprocessor {
 
             while (i + 1 < differences.length
                 && differences[i + 1].kind() == kind
+                && differenceEndsInSameParagraphWhenNextBegins(differences[i + 1], leftEnd, rightEnd)
                 && score(leftLength, differences[i + 1].leftLength(), rightLength, differences[i + 1].rightLength())
                 > (differences[i + 1].leftStart() - leftEnd)) {
                 leftEnd = differences[i + 1].leftEnd();
@@ -147,6 +148,13 @@ public class DifferencePreprocessor {
         }
 
         return newRanges;
+    }
+
+    private boolean differenceEndsInSameParagraphWhenNextBegins(RangeDifference difference, int leftEnd, int rightEnd) {
+        return this.right.getTextNodes().size() > difference.rightStart()
+            && this.left.getTextNodes().size() > difference.leftStart()
+            && this.right.getTextNode(rightEnd).getParent() == this.right.getTextNode(difference.rightStart()).getParent()
+            && this.left.getTextNode(leftEnd).getParent() == this.left.getTextNode(difference.leftStart()).getParent();
     }
 
     private double score(int... numbers) {
