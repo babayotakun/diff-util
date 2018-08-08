@@ -15,9 +15,10 @@
  */
 package org.outerj.daisy.diff;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Locale;
-import org.eclipse.compare.rangedifferencer.HTMLDiffer;
+import org.apache.commons.io.IOUtils;
 import org.outerj.daisy.diff.html.HtmlSaxDiffOutput;
 import org.outerj.daisy.diff.html.TextNodeComparator;
 import org.outerj.daisy.diff.html.dom.DomTreeBuilder;
@@ -28,39 +29,45 @@ import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 public class DaisyDiff {
-    private final DiffMode mode;
-    private final int chunkSize;
-    private final boolean forcedChunks;
+    private static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
+    private static final String BODY_OPEN = "<body>";
+    private static final String BODY_CLOSE = "</body>";
 
-    public DaisyDiff(DiffMode mode, int chunkSize, boolean forcedChunks) {
-        this.mode = mode;
-        this.chunkSize = chunkSize;
-        this.forcedChunks = forcedChunks;
-    }
-
-    public void diffHTML(InputSource oldSource, InputSource newSource, ContentHandler consumer, String prefix, Locale locale)
+    public int diffHTML(InputSource oldSource,
+                        InputSource newSource,
+                        ContentHandler consumer,
+                        String prefix,
+                        DiffMode mode,
+                        int chunkSize,
+                        int maxChunkSize)
         throws SAXException, IOException {
 
         DomTreeBuilder oldHandler = new DomTreeBuilder(true);
         XMLReader xr1 = XMLReaderFactory.createXMLReader();
         xr1.setContentHandler(oldHandler);
+        wrapHtmlWithBodyTagIfNeeded(oldSource);
         xr1.parse(oldSource);
-        TextNodeComparator leftComparator = new TextNodeComparator(oldHandler, locale);
+        TextNodeComparator leftComparator = new TextNodeComparator(oldHandler, DEFAULT_LOCALE);
 
         DomTreeBuilder newHandler = new DomTreeBuilder(true);
         XMLReader xr2 = XMLReaderFactory.createXMLReader();
         xr2.setContentHandler(newHandler);
+        wrapHtmlWithBodyTagIfNeeded(newSource);
         xr2.parse(newSource);
 
-        TextNodeComparator rightComparator = new TextNodeComparator(newHandler, locale);
+        TextNodeComparator rightComparator = new TextNodeComparator(newHandler, DEFAULT_LOCALE);
 
         HtmlSaxDiffOutput output = new HtmlSaxDiffOutput(consumer, prefix);
         HTMLDiffer differ = new HTMLDiffer(output);
 
-        DiffMode currentMode = mode;
-        if (forcedChunks && (leftComparator.getTextNodes().size() > chunkSize || rightComparator.getTextNodes().size() > chunkSize)) {
-            currentMode = DiffMode.CHUNKED;
+        return differ.diff(leftComparator, rightComparator, mode, chunkSize, maxChunkSize);
+    }
+
+    private void wrapHtmlWithBodyTagIfNeeded(InputSource source) throws IOException {
+        String docHtml = IOUtils.toString(source.getByteStream());
+        if (!docHtml.startsWith(BODY_OPEN)) {
+            String docHtmlWithBody = BODY_OPEN + docHtml + BODY_CLOSE;
+            source.setByteStream(new ByteArrayInputStream(docHtmlWithBody.getBytes()));
         }
-        differ.diff(leftComparator, rightComparator, currentMode, chunkSize);
     }
 }

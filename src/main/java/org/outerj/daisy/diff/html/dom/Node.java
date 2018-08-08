@@ -18,8 +18,10 @@ package org.outerj.daisy.diff.html.dom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
+import java.util.Objects;
 import org.outerj.daisy.diff.html.dom.helper.LastCommonParentResult;
+
+import static java.util.stream.Collectors.toList;
 
 /**
  * Represents any element in the DOM tree of a HTML file.
@@ -39,6 +41,22 @@ public abstract class Node {
         this.parent = parent;
         if (parent != null) {
             parent.addChild(this);
+            this.root = parent.getRoot();
+        } else if (this instanceof TagNode) {
+            this.root = (TagNode) this;
+        }
+
+    }
+
+    /**
+     * Create new child in the given parent, replacing old child.
+     * @param parent
+     * @param oldChild
+     */
+    public Node(TagNode parent, Node oldChild) {
+        this.parent = parent;
+        if (parent != null) {
+            parent.replaceChildWithIndex(this, oldChild);
             this.root = parent.getRoot();
         } else if (this instanceof TagNode) {
             this.root = (TagNode) this;
@@ -67,7 +85,15 @@ public abstract class Node {
             ancestors.add(ancestor);
         }
         Collections.reverse(ancestors);
-        return ancestors;
+        return ancestors.stream().filter(this::isNotMetadataTag).collect(toList());
+    }
+
+    private boolean isNotMetadataTag(TagNode ancestor) {
+        return !ancestor.getQName().equals("body")
+            && !ancestor.getQName().equals("html")
+            && (!ancestor.getQName().equals("div")
+            || ancestor.getAttributes().getValue("align") == null ||
+            Objects.equals(ancestor.getAttributes().getValue(TagNode.CLASS_ATTRIBUTE), "document-heading"));
     }
 
     //change for correct insertion of the deleted nodes
@@ -133,19 +159,34 @@ public abstract class Node {
 
         if (!isSame) {//found different parent
             result.setIndexInLastCommonParent(myParents.get(i - 1).getIndexOf(myParents.get(i)));
+
+            // If node not found it means we have a metadata tag,
+            // which do not appear in the parent tree. So we try to found that tag instead of our.
+            if (result.getIndexInLastCommonParent() == -1) {
+                result.setIndexInLastCommonParent(myParents.get(i - 1).getIndexOf(myParents.get(i).getParent()));
+            }
             result.setSplittingNeeded();
         } else if (myParents.size() < otherParents.size()) {
         	//current node is not so deeply nested
             result.setIndexInLastCommonParent(myParents.get(i - 1).getIndexOf(this));
+            if (result.getIndexInLastCommonParent() == -1) {
+                result.setIndexInLastCommonParent(myParents.get(i - 1).getIndexOf(this.parent));
+            }
         } else if (myParents.size() > otherParents.size()) {
             // All tags matched but there are tags left in this tree - 
         	//other node is not so deeply nested
             result.setIndexInLastCommonParent(myParents.get(i - 1).getIndexOf(myParents.get(i)));
+            if (result.getIndexInLastCommonParent() == -1) {
+                result.setIndexInLastCommonParent(myParents.get(i - 1).getIndexOf(myParents.get(i).getParent()));
+            }
             result.setSplittingNeeded();
         } else {
             // All tags matched until the very last one in both trees
             // or there were no tags besides the BODY
             result.setIndexInLastCommonParent(myParents.get(i - 1).getIndexOf(this));
+            if (result.getIndexInLastCommonParent() == -1) {
+                result.setIndexInLastCommonParent(myParents.get(i - 1).getIndexOf(this.parent));
+            }
         }
         return result;
     }

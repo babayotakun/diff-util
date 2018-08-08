@@ -20,18 +20,25 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.compare.rangedifferencer.IRangeComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparator;
 import org.outerj.daisy.diff.html.ancestor.AncestorComparatorResult;
 import org.outerj.daisy.diff.html.dom.BodyNode;
 import org.outerj.daisy.diff.html.dom.DomTree;
+import org.outerj.daisy.diff.html.dom.HiddenNoteNode;
 import org.outerj.daisy.diff.html.dom.Node;
+import org.outerj.daisy.diff.html.dom.SeparatingNode;
 import org.outerj.daisy.diff.html.dom.TagNode;
 import org.outerj.daisy.diff.html.dom.TextNode;
-import org.outerj.daisy.diff.html.dom.TextNodePreprocessor;
 import org.outerj.daisy.diff.html.dom.helper.LastCommonParentResult;
 import org.outerj.daisy.diff.html.modification.Modification;
 import org.outerj.daisy.diff.html.modification.ModificationType;
+
+import static org.outerj.daisy.diff.html.dom.DomTreeBuilder.FAKE_NON_BREAKING_SPACE;
+import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isHiddenElement;
+import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isHiddenElementRecursive;
 
 /**
  * A comparator that generates a DOM tree of sorts from handling SAX events.
@@ -40,9 +47,9 @@ import org.outerj.daisy.diff.html.modification.ModificationType;
  */
 public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> {
 
-    private List<TextNode> textNodes = new ArrayList<TextNode>(50);
+    private List<TextNode> textNodes;
 
-    private List<Modification> lastModified = new ArrayList<Modification>();
+    private List<Modification> lastModified = new ArrayList<>();
 
     private BodyNode bodyNode;
 
@@ -53,7 +60,6 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         this.locale = locale;
         textNodes = tree.getTextNodes();
         bodyNode = tree.getBodyNode();
-        TextNodePreprocessor.removeUnprocessableNodes(getBodyNode(), textNodes);
     }
 
     public BodyNode getBodyNode() {
@@ -94,18 +100,18 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
             getTextNode(start).setWhiteBefore(false);
 
         List<Modification> nextLastModified = new ArrayList<Modification>();
+        boolean onlyNonBreakingSpaces = getTextNodes().subList(start, end).stream()
+            .map(TextNode::getText)
+            .allMatch(text -> StringUtils.containsOnly(text, '\u00A0'));
+
+        if (onlyNonBreakingSpaces) {
+            return;
+        }
 
         for (int i = start; i < end; i++) {
             Modification mod = new Modification(ModificationType.ADDED, outputFormat);
             mod.setID(newID);
-            if (lastModified.size() > 0) {
-                mod.setPrevious(lastModified.get(0));
-                if (lastModified.get(0).getNext() == null) {
-                    for (Modification lastMod : lastModified) {
-                        lastMod.setNext(mod);
-                    }
-                }
-            }
+            linkPreviousModificationsWithCurrent(mod);
             nextLastModified.add(mod);
             getTextNode(i).setModification(mod);
         }
@@ -126,14 +132,8 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
     }
 
     public boolean rangesEqual(int i1, IRangeComparator rangeComp, int i2) {
-        TextNodeComparator comp;
-        try {
-            comp = (TextNodeComparator) rangeComp;
-        } catch (RuntimeException e) {
-            return false;
-        }
-
-        return getTextNode(i1).isSameText(comp.getTextNode(i2));
+        return rangeComp instanceof TextNodeComparator
+            && getTextNode(i1).isSameText(((TextNodeComparator) rangeComp).getTextNode(i2));
     }
 
     public boolean skipRangeComparison(int arg0, int arg1, IRangeComparator arg2) {
@@ -157,7 +157,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         List<Modification> nextLastModified = new ArrayList<Modification>();
 
         String changes = null;
-        while (i < rightend) {
+        while (i < rightend && j < leftend) {
             AncestorComparator acthis = new AncestorComparator(getTextNode(i).getParentTree());
             AncestorComparator acother = new AncestorComparator(leftComparator.getTextNode(j).getParentTree());
 
@@ -182,14 +182,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
                     }
                 }
 
-                if (lastModified.size() > 0) {
-                    mod.setPrevious(lastModified.get(0));
-                    if (lastModified.get(0).getNext() == null) {
-                        for (Modification lastMod : lastModified) {
-                            lastMod.setNext(mod);
-                        }
-                    }
-                }
+                linkPreviousModificationsWithCurrent(mod);
                 nextLastModified.add(mod);
 
                 mod.setChanges(result.getChanges());
@@ -215,17 +208,11 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
 
     // used to remove the whitespace between a red and green block
     private boolean whiteAfterLastChangedPart = false;
-
     private long deletedID = 0;
 
     /**
      * Marks the given range as deleted. In the output, the range will be
      * formatted as specified by the parameter anOutputFormat.
-     *
-     * @param start
-     * @param end
-     * @param oldComp
-     * @param before
      */
     public void markAsDeleted(int start, int end, TextNodeComparator oldComp,
                               int before, int after, ModificationType outputFormat) {
@@ -233,35 +220,36 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         if (end <= start)
             return;
 
-        if (before > 0 && getTextNode(before - 1).isWhiteAfter()) {
-            whiteAfterLastChangedPart = true;
-        } else {
-            whiteAfterLastChangedPart = false;
-        }
+        whiteAfterLastChangedPart = before > 0 && getTextNode(before - 1).isWhiteAfter();
 
         List<Modification> nextLastModified = new ArrayList<Modification>();
 
+        List<Node> initialDeletedNodes = new ArrayList<>(end - start);
         for (int i = start; i < end; i++) {
             Modification mod = new Modification(ModificationType.REMOVED, outputFormat);
             mod.setID(deletedID);
-            if (lastModified.size() > 0) {
-                mod.setPrevious(lastModified.get(0));
-                if (lastModified.get(0).getNext() == null) {
-                    for (Modification lastMod : lastModified) {
-                        lastMod.setNext(mod);
-                    }
-                }
-            }
+            linkPreviousModificationsWithCurrent(mod);
             nextLastModified.add(mod);
 
             // oldComp is used here because we're going to move its deleted
             // elements
             // to this tree!
             oldComp.getTextNode(i).setModification(mod);
+            initialDeletedNodes.add(oldComp.getTextNode(i));
         }
         oldComp.getTextNode(start).getModification().setFirstOfID(true);
 
-        List<Node> deletedNodes = getDeletedNodes(oldComp, start);
+        List<Node> deletedNodes = getDeletedNodes(initialDeletedNodes);
+        // helps in case of non-formatted text changed to the usual.
+        boolean onlyNonBreakingSpaces = deletedNodes.stream()
+            .allMatch(node ->
+                (TextNode.class.isInstance(node) && StringUtils.containsOnly(((TextNode) node).getText(), '\u00A0'))
+                    || (TagNode.class.isInstance(node) && Objects.equals(FAKE_NON_BREAKING_SPACE,
+                    ((TagNode) node).getAttributes().getValue(TagNode.CLASS_ATTRIBUTE))));
+        if (onlyNonBreakingSpaces) {
+            deletedNodes = new ArrayList<>();
+        }
+
         // Set prevLeaf to the leaf after which the old HTML needs to be
         // inserted
         Node prevLeaf = null;
@@ -306,8 +294,8 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         else if (before < getRangeCount())
             nextLeaf = getTextNode(before);
 
-        while (deletedNodes.size() > 0) {
-            LastCommonParentResult prevResult, nextResult;
+        while (!deletedNodes.isEmpty()) {
+            LastCommonParentResult prevResult;
             if (prevLeaf != null) {
                 prevResult = prevLeaf.getLastCommonParent(deletedNodes.get(0));
             } else {
@@ -315,6 +303,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
                 prevResult.setLastCommonParent(getBodyNode());
                 prevResult.setIndexInLastCommonParent(-1);
             }
+            LastCommonParentResult nextResult;
             if (nextLeaf != null) {
                 nextResult = nextLeaf.getLastCommonParent(deletedNodes.get(deletedNodes.size() - 1));
             } else {
@@ -333,23 +322,22 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
                 } else {
                     // The difference is in the parent, so compare them
                     // now THIS is tricky
-                    /*double distancePrev = deletedNodes
+                    double distancePrev = deletedNodes
                         .get(0)
                         .getParent()
                         .getMatchRatio(prevResult.getLastCommonParent());
                     double distanceNext = deletedNodes
                         .get(deletedNodes.size() - 1)
                         .getParent()
-                        .getMatchRatio(nextResult.getLastCommonParent());*/
-                    prevResult.setLastCommonParentDepth(prevResult.getLastCommonParentDepth() + 1);
+                        .getMatchRatio(nextResult.getLastCommonParent());
 
-                    /*if (distancePrev <= distanceNext) {
+                    if (distancePrev <= distanceNext) {
                         // insert after the previous node
                         prevResult.setLastCommonParentDepth(prevResult.getLastCommonParentDepth() + 1);
                     } else {
                         // insert before the next node
                         nextResult.setLastCommonParentDepth(nextResult.getLastCommonParentDepth() + 1);
-                    }*/
+                    }
                 }
 
             }
@@ -357,9 +345,11 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
             if (prevResult.getLastCommonParentDepth() > nextResult.getLastCommonParentDepth()) {
 
                 // Inserting at the front
-                if (prevResult.isSplittingNeeded()) {
-                    prevLeaf.getParent().splitUntill(prevResult.getLastCommonParent(), prevLeaf, true);
-                }
+
+                // Temporal disabled.
+               /* if (prevResult.isSplittingNeeded()) {
+                        prevLeaf.getParent().splitUntill(prevResult.getLastCommonParent(), prevLeaf, true);
+                }*/
                 prevLeaf = deletedNodes.remove(0).copyTree();
                 prevLeaf.setParent(prevResult.getLastCommonParent());
                 prevResult.getLastCommonParent().addChild(prevResult.getIndexInLastCommonParent() + 1, prevLeaf);
@@ -377,8 +367,7 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
                 }
                 nextLeaf = deletedNodes.remove(deletedNodes.size() - 1).copyTree();
                 nextLeaf.setParent(nextResult.getLastCommonParent());
-                nextResult.getLastCommonParent().addChild(
-                    nextResult.getIndexInLastCommonParent(), nextLeaf);
+                nextResult.getLastCommonParent().addChild(nextResult.getIndexInLastCommonParent(), nextLeaf);
             } else
                 throw new IllegalStateException();
 
@@ -387,8 +376,48 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         deletedID++;
     }
 
-    private List<Node> getDeletedNodes(TextNodeComparator oldComp, int nodeNumber) {
-        return oldComp.getTextNode(nodeNumber).getParent().getParent().getMinimalDeletedSet(deletedID);
+    private List<Node> getDeletedNodes(List<Node> initialDeletedNodes) {
+        List<Node> deletedNodes = new ArrayList<>();
+        boolean parentWasAdded;
+        do {
+            parentWasAdded = false;
+            for (Node text : initialDeletedNodes) {
+                TagNode possiblyDeletedParent = text.getParent();
+                // was processed
+                if (possiblyDeletedParent.isDeletedSetMark() != null && possiblyDeletedParent.isDeletedSetMark()) {
+                    continue;
+                }
+                boolean parentWasDeleted = possiblyDeletedParent.isDeletedSetMark() == null
+                    && possiblyDeletedParent.getChildren().size() < 1000
+                    && possiblyDeletedParent.getChildren().stream().allMatch(this::wasDeleted);
+                if (parentWasDeleted) {
+                    deletedNodes.add(possiblyDeletedParent);
+                    parentWasAdded = true;
+                    possiblyDeletedParent.setDeletedSetMark(true);
+                } else {
+                    deletedNodes.add(text);
+                    possiblyDeletedParent.setDeletedSetMark(false);
+                }
+            }
+
+            if (parentWasAdded) {
+                initialDeletedNodes = deletedNodes;
+                deletedNodes = new ArrayList<>();
+            }
+
+        } while (parentWasAdded);
+        return deletedNodes;
+    }
+
+    private boolean wasDeleted(Node child) {
+        boolean hidden = child instanceof TagNode
+            && ((isHiddenElement((TagNode) child) || isHiddenElementRecursive((TagNode) child))
+            || ((TagNode) child).getChildren().stream().allMatch(this::wasDeleted));
+        boolean note = child instanceof HiddenNoteNode || child instanceof SeparatingNode;
+        boolean deleted = child instanceof TextNode
+            && ((TextNode) child).getModification().getType() == ModificationType.REMOVED
+            && ((TextNode) child).getModification().getID() == deletedID;
+        return hidden || deleted || note;
     }
 
     /**
@@ -413,52 +442,14 @@ public class TextNodeComparator implements IRangeComparator, Iterable<TextNode> 
         return textNodes.iterator();
     }
 
-    /**
-     * Used for combining multiple comparators in order to create a single
-     * output document. The IDs must be successive along the different
-     * comparators.
-     *
-     * @param aDeletedID
-     */
-    public void setStartDeletedID(long aDeletedID) {
-        deletedID = aDeletedID;
-    }
-
-    /**
-     * Used for combining multiple comparators in order to create a single
-     * output document. The IDs must be successive along the different
-     * comparators.
-     */
-    public void setStartChangedID(long aChangedID) {
-        changedID = aChangedID;
-    }
-
-    /**
-     * Used for combining multiple comparators in order to create a single
-     * output document. The IDs must be successive along the different
-     * comparators.
-     */
-    public void setStartNewID(long aNewID) {
-        newID = aNewID;
-    }
-
-    public long getChangedID() {
-        return changedID;
-    }
-
-    public long getDeletedID() {
-        return deletedID;
-    }
-
-    public long getNewID() {
-        return newID;
-    }
-
-    public List<Modification> getLastModified() {
-        return lastModified;
-    }
-
-    public void setLastModified(List<Modification> aLastModified) {
-        lastModified = new ArrayList<Modification>(aLastModified);
+    private void linkPreviousModificationsWithCurrent(Modification mod) {
+        if (!lastModified.isEmpty()) {
+            mod.setPrevious(lastModified.get(0));
+            if (lastModified.get(0).getNext() == null) {
+                for (Modification lastMod : lastModified) {
+                    lastMod.setNext(mod);
+                }
+            }
+        }
     }
 }

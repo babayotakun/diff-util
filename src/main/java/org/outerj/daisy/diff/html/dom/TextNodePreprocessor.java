@@ -1,22 +1,29 @@
 package org.outerj.daisy.diff.html.dom;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.outerj.daisy.diff.html.dom.TagNode.CLASS_ATTRIBUTE;
 
 /**
  * Created by d.kalach on 6/22/17.
  */
 public class TextNodePreprocessor {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TextNodePreprocessor.class);
     private static final String DISPLAY_NONE_CLASS = "color__800000 display_none";
-    private static final String CLASS_ATTRIBUTE = "class";
+    private static final String NOT_VISIBLE_ELEMENT = "not-visible-element";
+    private static final Pattern CONTENTS_LABEL = Pattern.compile("\\{ОГЛ_[^=]=[*\\d]_([^}]*)}");
     private static final int NEXT_NODES_IN_SEGMENT_DEFINITION = 5;
     private BodyNode bodyNode;
     private List<TextNode> textNodes;
-    private SortedMap<String, List<TextNode>> segments = new TreeMap<>();
+    private List<Pair<String, List<TextNode>>> segments = new ArrayList<>();
 
 
     public TextNodePreprocessor(BodyNode bodyNode, List<TextNode> textNodes) {
@@ -24,64 +31,88 @@ public class TextNodePreprocessor {
         this.textNodes = textNodes;
     }
 
-    public SortedMap<String, List<TextNode>> collectSegmentNodes() {
-        collectSegmentNodes(bodyNode);
+    public List<Pair<String, List<TextNode>>> collectSegmentNodes(int maxChunkSize) {
+        collectSegmentNodes(bodyNode, maxChunkSize);
+        segments.add(new ImmutablePair<>(currentContentsLabel, currentTextNodes));
         return segments;
     }
 
-    public static void removeUnprocessableNodes(TagNode parent, List<TextNode> textNodes) {
-        TextNodePreprocessor.removeUnprocessableNodesRecursive(parent, textNodes);
-    }
+    private String currentContentsLabel = "0";
+    private List<TextNode> currentTextNodes = new ArrayList<>();
 
-    private static void removeUnprocessableNodesRecursive(TagNode parent, List<TextNode> textNodes) {
+    private void collectSegmentNodes(TagNode parent, int maxChunkSize) {
         for (Node current : parent) {
             if (current instanceof TagNode) {
                 TagNode currentTag = (TagNode) current;
-                if (Objects.equals(DISPLAY_NONE_CLASS, currentTag.getAttributes().getValue(CLASS_ATTRIBUTE))) {
-                    for (Node child : currentTag) {
-                        if (child instanceof TextNode) {
-                            // Batch removing is significantly slower!
-                            textNodes.remove(child);
-                        }
-                    }
-                } else {
-                    removeUnprocessableNodesRecursive(currentTag, textNodes);
-                }
-            }
-        }
-    }
-
-    private String currentSegmentId = "0";
-    private List<TextNode> currentTextNodes = new ArrayList<>();
-
-    private void collectSegmentNodes(TagNode parent) {
-        Iterator<Node> iterator = parent.iterator();
-        while (iterator.hasNext()) {
-            Node current = iterator.next();
-            if (current instanceof TagNode) {
-                TagNode currentTag = (TagNode) current;
-                String segmentId = getSegmentId(currentTag);
-                if (segmentId != null) {
-                    segments.put(currentSegmentId, currentTextNodes);
-                    currentSegmentId = segmentId;
+                String contentsLabel = getContentsLabel(currentTag);
+                if (contentsLabel != null) {
+                    segments.add(new ImmutablePair<>(currentContentsLabel, currentTextNodes));
+                    currentContentsLabel = contentsLabel;
                     currentTextNodes = new ArrayList<>();
-                } else if (!Objects.equals(DISPLAY_NONE_CLASS, currentTag.getAttributes().getValue(CLASS_ATTRIBUTE))) {
-                    collectSegmentNodes(currentTag);
+                } else if (!isHiddenElement(currentTag)) {
+                    collectSegmentNodes(currentTag, maxChunkSize);
                 }
             } else if (current instanceof TextNode) {
                 currentTextNodes.add((TextNode) current);
+                if (currentTextNodes.size() > maxChunkSize) {
+                    LOGGER.warn("*** Document contains a chuck too large to process, chuck will be split");
+                    segments.add(new ImmutablePair<>(currentContentsLabel, currentTextNodes));
+                    currentContentsLabel = currentContentsLabel + "0";
+                    currentTextNodes = new ArrayList<>();
+                }
             }
         }
     }
 
-    private String getSegmentId(TagNode tag) {
-        if (tag.getNbChildren() == NEXT_NODES_IN_SEGMENT_DEFINITION
+    private String getContentsLabel(TagNode tag) {
+        if (tag.getNbChildren() >= NEXT_NODES_IN_SEGMENT_DEFINITION
             && isTextNodeContainingText(tag.getChild(0), "{")
-            // Cyrillic M !!!
-            && isTextNodeContainingText(tag.getChild(1), "М")) {
-            return ((TextNode) tag.getChild(3)).getText();
+            && isTextNodeContainingText(tag.getChild(1), "ОГЛ_В")) {
+            StringBuilder id = new StringBuilder();
+            for (Node child : tag) {
+                if (child instanceof TextNode) {
+                    id.append(((TextNode) child).getText());
+                } else {
+                    return null;
+                }
+            }
+            Matcher matcher = CONTENTS_LABEL.matcher(id.toString());
+            if (matcher.matches()) {
+                return matcher.group(1);
+            }
         }
         return null;
+    }
+
+    public static boolean isHiddenElement(TagNode tag) {
+        if (tag.getHiddenFlag() != null) {
+            return tag.getHiddenFlag();
+        }
+        boolean isHidden = Optional.ofNullable(tag.getAttributes().getValue(CLASS_ATTRIBUTE))
+            .map(clazz -> DISPLAY_NONE_CLASS.equals(clazz) || NOT_VISIBLE_ELEMENT.equals(clazz))
+            .orElse(false);
+        tag.setHiddenFlag(isHidden);
+        return isHidden;
+    }
+
+    public static boolean isHiddenElementRecursive(TagNode tag) {
+        if (isHiddenElement(tag)) {
+            return true;
+        }
+        if (tag.getRecursiveHiddenFlag() != null) {
+            return tag.getRecursiveHiddenFlag();
+        }
+        boolean allChildrenAreHidden = true;
+        for (Node child : tag) {
+            if (child instanceof TagNode) {
+                allChildrenAreHidden = allChildrenAreHidden && isHiddenElementRecursive((TagNode) child);
+            } else {
+                allChildrenAreHidden = false;
+                break;
+            }
+        }
+        tag.setRecursiveHiddenFlag(allChildrenAreHidden);
+        return allChildrenAreHidden;
     }
 
     private boolean isTextNodeContainingText(Node node, String text) {

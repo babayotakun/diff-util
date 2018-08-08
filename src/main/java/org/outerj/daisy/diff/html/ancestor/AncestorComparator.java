@@ -63,24 +63,16 @@ public class AncestorComparator implements IRangeComparator {
         return compareTxt;
     }
 
-    public AncestorComparatorResult getResult(AncestorComparator other,
-            Locale locale) {
-
+    public AncestorComparatorResult getResult(AncestorComparator other, Locale locale) {
         AncestorComparatorResult result = new AncestorComparatorResult();
-
-        RangeDifference[] differences = RangeDifferencer.findDifferences(other,
-                this);
-
-        if (differences.length == 0)
+        RangeDifference[] differences = RangeDifferencer.findDifferences(other, this);
+        if (differences.length == 0) {
             return result;
-
-        ChangeTextGenerator changeTxt = new ChangeTextGenerator(this, other,
-                locale);
-
+        }
+        ChangeTextGenerator changeTxt = new ChangeTextGenerator(this, other, locale);
         result.setChanged(true);
         result.setChanges(changeTxt.getChanged(differences).toString());
         result.setHtmlLayoutChanges(changeTxt.getHtmlLayoutChanges());
-
         return result;
 
     }

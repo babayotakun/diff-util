@@ -3,7 +3,6 @@ package org.outerj.daisy.diff.html.dom.helper;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.xml.sax.Attributes;
 /**
  * Map is used to store DOM tag attribute names and values. 
@@ -75,10 +74,10 @@ public class AttributesMap extends HashMap<String, String> {
             if (localValue == null)
                 return false;
             if (!localValue.equals(value)) {
-                if (qName.equals(STYLE_ATTR) && equivalentStyles(value, localValue))
-                    continue;
-                if (qName.equals(CLASS_ATTR) && sameClassSet(value, localValue))
-                    continue;
+				if (qName.equals(STYLE_ATTR) && equivalentStyles(value, localValue))
+					continue;
+				if (qName.equals(CLASS_ATTR) && sameClassSet(value, localValue))
+					continue;
                 return false;
             }
         }

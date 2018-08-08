@@ -50,7 +50,26 @@ public class HtmlLayoutChange {
 	 * Full text of the closing tag (e.g. </td>)
 	 */
 	private String endingTag = null;
-	
+
+	private String changedTagQName;
+	private String changedTagClass;
+
+	public String getChangedTagQName() {
+		return changedTagQName;
+	}
+
+	public void setChangedTagQName(String oldTagQName) {
+		this.changedTagQName = oldTagQName;
+	}
+
+	public String getChangedTagClass() {
+		return changedTagClass;
+	}
+
+	public void setChangedTagClass(String changedTagClass) {
+		this.changedTagClass = changedTagClass;
+	}
+
 	/**
 	 * Default contructor that justs inserts sane values.
 	 */
@@ -60,56 +79,26 @@ public class HtmlLayoutChange {
 		endingTag = "";
 	}
 
-	/**
-	 * Getter for the type.
-	 * 
-	 * @return the type
-	 */
 	public Type getType() {
 		return type;
 	}
 
-	/**
-	 * Setter for the type.
-	 * 
-	 * @param type the type to set
-	 */
 	public void setType(Type type) {
 		this.type = type;
 	}
 
-	/**
-	 * Getter for the opening tag.
-	 * 
-	 * @return the openingTag
-	 */
 	public String getOpeningTag() {
 		return openingTag;
 	}
 
-	/**
-	 * Setter for the opening tag.
-	 * 
-	 * @param openingTag the openingTag to set
-	 */
 	public void setOpeningTag(String openingTag) {
 		this.openingTag = openingTag;
 	}
 
-	/**
-	 * Getter for the ending tag.
-	 * 
-	 * @return the endingTag
-	 */
 	public String getEndingTag() {
 		return endingTag;
 	}
 
-	/**
-	 * Setter for the ending tag.
-	 * 
-	 * @param endingTag the endingTag to set
-	 */
 	public void setEndingTag(String endingTag) {
 		this.endingTag = endingTag;
 	}

@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.eclipse.compare.rangedifferencer;
+package org.outerj.daisy.diff;
 
-import java.util.LinkedList;
 import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.compare.internal.LCSSettings;
-import org.outerj.daisy.diff.DiffMode;
+import org.eclipse.compare.rangedifferencer.DifferencePreprocessor;
+import org.eclipse.compare.rangedifferencer.RangeDifference;
+import org.eclipse.compare.rangedifferencer.RangeDifferencer;
+import org.outerj.daisy.diff.html.ChangedClassesHandler;
 import org.outerj.daisy.diff.html.ChunkCreator;
 import org.outerj.daisy.diff.html.IterableTextNodeComparator;
 import org.outerj.daisy.diff.html.TextNodeComparator;
@@ -34,7 +36,6 @@ public class HTMLDiffer implements Differ {
     private static final Logger LOGGER = LoggerFactory.getLogger(HTMLDiffer.class);
 
     private DiffOutput output;
-
     public HTMLDiffer(DiffOutput dm) {
         output = dm;
     }
@@ -42,13 +43,17 @@ public class HTMLDiffer implements Differ {
     /**
      * {@inheritDoc}
      */
-    public void diff(TextNodeComparator leftComparator, TextNodeComparator rightComparator, DiffMode mode, int chunkSize) throws SAXException {
+    public int diff(TextNodeComparator leftComparator,
+                    TextNodeComparator rightComparator,
+                    DiffMode mode,
+                    int chunkSize,
+                    int maxChunkSize) throws SAXException {
         long findDiffStart = System.currentTimeMillis();
         LOGGER.info("Diff started in " + mode.name() + " mode");
         int diffCount;
         switch (mode) {
             case CHUNKED:
-                diffCount = chunkedDiff(leftComparator, rightComparator, chunkSize);
+                diffCount = chunkedDiff(leftComparator, rightComparator, chunkSize, maxChunkSize);
                 break;
             case FULL:
                 diffCount = fullDiff(leftComparator, rightComparator, false);
@@ -63,23 +68,29 @@ public class HTMLDiffer implements Differ {
         LOGGER.info("Difference search completed in " + (System.currentTimeMillis() - findDiffStart));
         LOGGER.info("Total found " + diffCount + " differences");
 
+        new ChangedClassesHandler().processChangedClasses(rightComparator.getBodyNode());
         rightComparator.expandWhiteSpace();
         output.generateOutput(rightComparator.getBodyNode());
+        return diffCount;
     }
 
-    private int chunkedDiff(TextNodeComparator leftComparator, TextNodeComparator rightComparator, int chunkSize) {
+    private int chunkedDiff(TextNodeComparator leftComparator, TextNodeComparator rightComparator, int chunkSize, int maxChunkSize) {
         int diffCount = 0;
-        ChunkCreator chunkCreator = new ChunkCreator(leftComparator, rightComparator);
-        for (Pair<List<TextNode>, List<TextNode>> diffPair : chunkCreator.getChunks(chunkSize)) {
+        ChunkCreator chunkCreator = new ChunkCreator(leftComparator, rightComparator, maxChunkSize);
+        DifferencePreprocessor preprocessor = new DifferencePreprocessor(leftComparator, rightComparator);
+        for (Pair<List<TextNode>, List<TextNode>> diffPair : chunkCreator.getChunks(chunkSize, maxChunkSize)) {
+            LOGGER.info("Started diff of pair, left size: {}, right size: {}", diffPair.getLeft().size(), diffPair.getRight().size());
+            long pairStart = System.currentTimeMillis();
             RangeDifference[] differences = RangeDifferencer.findDifferences(
                 new LCSSettings(),
                 new IterableTextNodeComparator(diffPair.getLeft()),
                 new IterableTextNodeComparator(diffPair.getRight()));
-            List<RangeDifference> diffToProcess = preProcess(differences);
             leftComparator.setTextNodes(diffPair.getLeft());
             rightComparator.setTextNodes(diffPair.getRight());
+            List<RangeDifference> diffToProcess = preprocessor.preProcess(differences);
             diffCount += diffToProcess.size();
             processDifferences(leftComparator, rightComparator, diffToProcess);
+            LOGGER.info("Pair processed in {} ms, found {} differences", System.currentTimeMillis() - pairStart, diffToProcess.size());
         }
         return diffCount;
     }
@@ -92,7 +103,8 @@ public class HTMLDiffer implements Differ {
             settings.setUseGreedyMethod(true);
         }
         RangeDifference[] differences = RangeDifferencer.findDifferences(settings, leftComparator, rightComparator);
-        List<RangeDifference> diffToProcess = preProcess(differences);
+        DifferencePreprocessor preprocessor = new DifferencePreprocessor(leftComparator, rightComparator);
+        List<RangeDifference> diffToProcess = preprocessor.preProcess(differences);
         diffCount = diffToProcess.size();
         processDifferences(leftComparator, rightComparator, diffToProcess);
         return diffCount;
@@ -114,7 +126,7 @@ public class HTMLDiffer implements Differ {
 
             currentIndexLeft = d.leftEnd();
             currentIndexRight = d.rightEnd();
-            LOGGER.info("Iteration complete in " + (System.currentTimeMillis() - iterationStart) + " ms; number " + counter++);
+            //LOGGER.info("Iteration complete in " + (System.currentTimeMillis() - iterationStart) + " ms; number " + counter++);
         }
         if (currentIndexLeft < leftComparator.getRangeCount()) {
             rightComparator.handlePossibleChangedPart(currentIndexLeft, leftComparator.getRangeCount(),
@@ -122,61 +134,4 @@ public class HTMLDiffer implements Differ {
         }
     }
 
-    private List<RangeDifference> preProcess(RangeDifference[] differences) {
-
-        List<RangeDifference> newRanges = new LinkedList<RangeDifference>();
-
-        for (int i = 0; i < differences.length; i++) {
-
-            int ancestorStart = differences[i].ancestorStart();
-            int ancestorEnd = differences[i].ancestorEnd();
-            int leftStart = differences[i].leftStart();
-            int leftEnd = differences[i].leftEnd();
-            int rightStart = differences[i].rightStart();
-            int rightEnd = differences[i].rightEnd();
-            int kind = differences[i].kind();
-
-            int ancestorLength = ancestorEnd - ancestorStart;
-            int leftLength = leftEnd - leftStart;
-            int rightLength = rightEnd - rightStart;
-
-            while (i + 1 < differences.length
-                && differences[i + 1].kind() == kind
-                && score(leftLength, differences[i + 1].leftLength(),
-                rightLength, differences[i + 1].rightLength()) > (differences[i + 1]
-                .leftStart() - leftEnd)) {
-                leftEnd = differences[i + 1].leftEnd();
-                rightEnd = differences[i + 1].rightEnd();
-                ancestorEnd = differences[i + 1].ancestorEnd();
-                leftLength = leftEnd - leftStart;
-                rightLength = rightEnd - rightStart;
-                ancestorLength = ancestorEnd - ancestorStart;
-                i++;
-            }
-
-            newRanges.add(new RangeDifference(kind,
-                rightStart, rightLength,
-                leftStart, leftLength,
-                ancestorStart, ancestorLength));
-        }
-
-        return newRanges;
-    }
-
-    public static double score(int... numbers) {
-        if ((numbers[0] == 0 && numbers[1] == 0) || (numbers[2] == 0 && numbers[3] == 0))
-            return 0;
-
-        double d = 0;
-        for (double number : numbers) {
-            while (number > 3) {
-                d += 3;
-                number -= 3;
-                number *= 0.5;
-            }
-            d += number;
-
-        }
-        return d / (1.5 * numbers.length);
-    }
 }

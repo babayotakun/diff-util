@@ -38,13 +38,6 @@ public enum ModificationType {
         }
     },
 
-    CONFLICT {
-        @Override
-        public String toString() {
-            return "conflict";
-        }
-    },
-
     NONE {
         @Override
         public String toString() {

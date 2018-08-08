@@ -15,12 +15,21 @@
  */
 package org.outerj.daisy.diff.html.dom;
 
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import org.outerj.daisy.diff.html.ancestor.TextOnlyComparator;
 import org.outerj.daisy.diff.html.dom.helper.AttributesMap;
+import org.outerj.daisy.diff.html.modification.ModificationType;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
+
+import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isHiddenElement;
+import static org.outerj.daisy.diff.html.dom.TextNodePreprocessor.isHiddenElementRecursive;
 
 /**
  * Node that can contain other nodes. Represents an HTML tag.
@@ -28,11 +37,41 @@ import org.xml.sax.helpers.AttributesImpl;
  */
 public class TagNode extends Node implements Iterable<Node> {
 
+    public static final String CLASS_ATTRIBUTE = "class";
+    public static final String OLD_CLASS_ATTRIBUTE = "old-class";
+    public static final String NON_FORMATTED_SPAN = "H-ConsNonformat";
     private List<Node> children = new ArrayList<Node>();
 
     private String qName;
 
-    private final Attributes attributes;
+    private Attributes attributes;
+    private Boolean hiddenFlag = null;
+    private Boolean recursiveHiddenFlag = null;
+    private Boolean deletedSetMark = null;
+
+    public Boolean isDeletedSetMark() {
+        return deletedSetMark;
+    }
+
+    public void setDeletedSetMark(Boolean deletedSetMark) {
+        this.deletedSetMark = deletedSetMark;
+    }
+
+    public Boolean getHiddenFlag() {
+        return hiddenFlag;
+    }
+
+    public void setHiddenFlag(Boolean hiddenFlag) {
+        this.hiddenFlag = hiddenFlag;
+    }
+
+    public Boolean getRecursiveHiddenFlag() {
+        return recursiveHiddenFlag;
+    }
+
+    public void setRecursiveHiddenFlag(Boolean recursiveHiddenFlag) {
+        this.recursiveHiddenFlag = recursiveHiddenFlag;
+    }
 
     /**
      * Attributes objects are unmodifiable and {@link #attributes} is final, so we can usefully cache the
@@ -87,6 +126,11 @@ public class TagNode extends Node implements Iterable<Node> {
     public int getIndexOf(Node child) {
         return children.indexOf(child);
     }
+
+    public void replaceChildWithIndex(Node newChild, Node oldChild) {
+        int oldIndex = getIndexOf(oldChild);
+        children.set(oldIndex, newChild);
+    }
     
     /**
      * Inserts provided node in the collection of children at the specified index 
@@ -106,6 +150,10 @@ public class TagNode extends Node implements Iterable<Node> {
 
     public Node getChild(int i) {
         return children.get(i);
+    }
+
+    public List<Node> getChildren() {
+        return children;
     }
 
     /**
@@ -134,6 +182,10 @@ public class TagNode extends Node implements Iterable<Node> {
 
     public Attributes getAttributes() {
         return attributes;
+    }
+
+    public void setAttributes(Attributes attributes) {
+        this.attributes = attributes;
     }
 
     /**
@@ -229,7 +281,9 @@ public class TagNode extends Node implements Iterable<Node> {
     	if (another instanceof TagNode) {
     		TagNode otherNode = (TagNode) another;
     		if (this.getQName().equalsIgnoreCase(otherNode.getQName())) {
-    			result = hasSameAttributes(otherNode.getAttributes());
+    		    // We need to track style differences only in the spans.
+    			result = !this.getQName().equalsIgnoreCase("span") || hasSameAttributes(otherNode.getAttributes());
+                //return true;
     		}
     	}
 		return result;
@@ -293,10 +347,10 @@ public class TagNode extends Node implements Iterable<Node> {
     @Override
     public List<Node> getMinimalDeletedSet(long id) {
 
-        List<Node> nodes = new ArrayList<Node>();
+        List<Node> nodes = new ArrayList<>();
 
         //no-content tags are never included in the set
-        if (children.size() == 0) {
+        if (children.stream().allMatch(child -> child instanceof TagNode && isHiddenElement((TagNode) child))) {
 			return nodes;
 		}
 
@@ -305,15 +359,31 @@ public class TagNode extends Node implements Iterable<Node> {
         boolean hasNotDeletedDescendant = false;
 
         for (Node child : this) {//check if kids are in the deleted set
-            List<Node> childrenChildren = child.getMinimalDeletedSet(id);
-            nodes.addAll(childrenChildren);
-            if (!hasNotDeletedDescendant && !(childrenChildren.size() == 1 && childrenChildren.contains(child))) {
+
+            // Do not call getMinimalDeletedSet on TextNodes cause in leads to massive memory allocations.
+            List<Node> childrenChildren;
+            boolean singleChildAdded = false;
+            if (child instanceof TextNode) {
+                TextNode text = (TextNode) child;
+                if (text.getModification().getType() == ModificationType.REMOVED && text.getModification().getID() == id) {
+                    nodes.add(child);
+                    singleChildAdded = true;
+                }
+            } else {
+                childrenChildren = child.getMinimalDeletedSet(id);
+                nodes.addAll(childrenChildren);
+            }
+            if (!hasNotDeletedDescendant && !singleChildAdded) {
                 // This child is not entirely deleted
                 hasNotDeletedDescendant = true;
             }
         }
-        //if all kids are in the deleted set - remove them and put this instead
-        if (!hasNotDeletedDescendant) {
+        boolean leftOnlyHidden = false;
+        if (!nodes.isEmpty()) {
+            leftOnlyHidden = children.stream().filter(child -> !nodes.contains(child))
+                .allMatch(child -> child instanceof TagNode && (isHiddenElement((TagNode) child) || isHiddenElementRecursive((TagNode) child)));
+        }
+        if (!hasNotDeletedDescendant || leftOnlyHidden) {
             nodes.clear();
             nodes.add(this);
         }
@@ -444,7 +514,7 @@ public class TagNode extends Node implements Iterable<Node> {
     public static boolean isBlockLevel(Node node) {
         try {
             TagNode tagnode = (TagNode) node;
-            return isBlockLevel(tagnode.getQName());
+            return isBlockLevel(tagnode.getQName()) || isBlockSpan(tagnode);
         } catch (ClassCastException e) {
             return false;
         }
@@ -452,6 +522,15 @@ public class TagNode extends Node implements Iterable<Node> {
 
     public boolean isBlockLevel() {
         return isBlockLevel(this);
+    }
+
+    public boolean isBlockSpan() {
+        return isBlockSpan(this);
+    }
+
+    private static boolean isBlockSpan(TagNode tag) {
+        return tag.getQName().equals("span")
+            && Objects.equals(tag.getAttributes().getValue(CLASS_ATTRIBUTE), NON_FORMATTED_SPAN);
     }
 
     public static boolean isInline(String qName) {
@@ -481,6 +560,9 @@ public class TagNode extends Node implements Iterable<Node> {
     }
 
     public double getMatchRatio(TagNode other) {
+        if (this.getNbChildren() > 1000 || other.getNbChildren() > 1000) {
+            return 0.0;
+        }
         TextOnlyComparator txtComp = new TextOnlyComparator(other);
         return txtComp.getMatchRatio(new TextOnlyComparator(this));
     }
@@ -503,14 +585,12 @@ public class TagNode extends Node implements Iterable<Node> {
             }
 
             if (!spaceAdded && child.isWhiteBefore()) {
-                WhiteSpaceNode ws = new WhiteSpaceNode(null, " ", child
-                        .getLeftMostChild());
+                WhiteSpaceNode ws = new WhiteSpaceNode(null, " ", child.getLeftMostChild());
                 ws.setParent(this);
                 addChild(i + (shift++), ws);
             }
             if (child.isWhiteAfter()) {
-                WhiteSpaceNode ws = new WhiteSpaceNode(null, " ", child
-                        .getRightMostChild());
+                WhiteSpaceNode ws = new WhiteSpaceNode(null, " ", child.getRightMostChild());
                 ws.setParent(this);
                 addChild(i + 1 + (shift++), ws);
                 spaceAdded = true;

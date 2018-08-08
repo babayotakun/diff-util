@@ -1,10 +1,10 @@
 package org.outerj.daisy.diff.html;
 
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.outerj.daisy.diff.html.dom.TextNode;
@@ -14,49 +14,61 @@ import org.outerj.daisy.diff.html.dom.TextNodePreprocessor;
  * Created by d.kalach on 6/26/17.
  */
 public class ChunkCreator {
+    private final List<Pair<String, List<TextNode>>> segmentsLeft;
+    private final List<Pair<String, List<TextNode>>> segmentsRight;
 
-    private final SortedMap<String, List<TextNode>> segmentsLeft;
-    private final SortedMap<String, List<TextNode>> segmentsRight;
-
-    public ChunkCreator(TextNodeComparator leftComparator, TextNodeComparator rightComparator) {
+    public ChunkCreator(TextNodeComparator leftComparator, TextNodeComparator rightComparator, int maxChunkSize) {
         TextNodePreprocessor preprocessorLeft = new TextNodePreprocessor(leftComparator.getBodyNode(), leftComparator.getTextNodes());
         TextNodePreprocessor preprocessorRight = new TextNodePreprocessor(rightComparator.getBodyNode(), rightComparator.getTextNodes());
-        segmentsLeft = preprocessorLeft.collectSegmentNodes();
-        segmentsRight = preprocessorRight.collectSegmentNodes();
+        segmentsLeft = preprocessorLeft.collectSegmentNodes(maxChunkSize);
+        segmentsRight = preprocessorRight.collectSegmentNodes(maxChunkSize);
     }
 
-    public Collection<Pair<List<TextNode>, List<TextNode>>> getChunks(int maxChunkSize) {
-        return reduceToChunks(merge().values(), maxChunkSize);
+    public Collection<Pair<List<TextNode>, List<TextNode>>> getChunks(int chunkSize, int maxChunkSize) {
+        return reduceToChunks(merge(maxChunkSize), chunkSize);
     }
 
-    private SortedMap<String, Pair<List<TextNode>, List<TextNode>>> merge() {
+    private Collection<Pair<List<TextNode>, List<TextNode>>> merge(int maxChunkSize) {
         List<TextNode> currentLeft = new ArrayList<>();
         List<TextNode> currentRight = new ArrayList<>();
-        SortedMap<String, Pair<List<TextNode>, List<TextNode>>> result = new TreeMap<>();
-        String prevSegment = segmentsLeft.firstKey();
-        boolean firstSkipped = false;
-        for (String segmentId : segmentsLeft.keySet()) {
-            // skip first one
-            if (!firstSkipped) {
-                firstSkipped = true;
-                continue;
-            }
+        List<Pair<List<TextNode>, List<TextNode>>> result = new ArrayList<>();
 
-            if (segmentsRight.containsKey(segmentId)) {
-                segmentsRight.subMap(prevSegment, segmentId).values().forEach(currentRight::addAll);
-                segmentsLeft.subMap(prevSegment, segmentId).values().forEach(currentLeft::addAll);
-                result.put(prevSegment, new ImmutablePair<>(currentLeft, currentRight));
-                prevSegment = segmentId;
+        List<String> leftSegmentIds = segmentsLeft.stream().map(Pair::getLeft).collect(Collectors.toList());
+        List<String> rightSegmentIds = segmentsRight.stream().map(Pair::getLeft).collect(Collectors.toList());
+
+        int lastLeftIndex = 0;
+        int lastRightIndex = 0;
+        for (int leftIndex = 0; leftIndex < leftSegmentIds.size(); leftIndex++) {
+            int rightIndex = rightSegmentIds.indexOf(leftSegmentIds.get(leftIndex));
+            if (rightIndex > -1 && lastRightIndex < rightIndex) {
+                segmentsRight.subList(lastRightIndex, rightIndex).stream().map(Pair::getRight).forEach(currentRight::addAll);
+                segmentsLeft.subList(lastLeftIndex, leftIndex).stream().map(Pair::getRight).forEach(currentLeft::addAll);
+                addToResult(maxChunkSize, currentLeft, currentRight, result);
                 currentLeft = new ArrayList<>();
                 currentRight = new ArrayList<>();
+                lastLeftIndex = leftIndex;
+                lastRightIndex = rightIndex;
             }
         }
         currentLeft = new ArrayList<>();
         currentRight = new ArrayList<>();
-        segmentsRight.tailMap(prevSegment).values().forEach(currentRight::addAll);
-        segmentsLeft.tailMap(prevSegment).values().forEach(currentLeft::addAll);
-        result.put(prevSegment, new ImmutablePair<>(currentLeft, currentRight));
+        segmentsRight.subList(lastRightIndex, rightSegmentIds.size()).stream().map(Pair::getRight).forEach(currentRight::addAll);
+        segmentsLeft.subList(lastLeftIndex, leftSegmentIds.size()).stream().map(Pair::getRight).forEach(currentLeft::addAll);
+        addToResult(maxChunkSize, currentLeft, currentRight, result);
         return result;
+    }
+
+    private void addToResult(int maxChunkSize, List<TextNode> currentLeft, List<TextNode> currentRight, List<Pair<List<TextNode>, List<TextNode>>> result) {
+        if (currentLeft.size() > maxChunkSize || currentRight.size() > maxChunkSize) {
+            int partCount = Math.max(currentLeft.size() / maxChunkSize + 1, currentRight.size() / maxChunkSize + 1);
+            List<List<TextNode>> leftChunkParts = Lists.partition(currentLeft, (int) Math.ceil((double) currentLeft.size() / partCount));
+            List<List<TextNode>> rightChunkParts = Lists.partition(currentRight, (int) Math.ceil((double) currentRight.size() / partCount));
+            for (int currentPart = 0; currentPart < partCount; currentPart++) {
+                result.add(new ImmutablePair<>(leftChunkParts.get(currentPart), rightChunkParts.get(currentPart)));
+            }
+        } else {
+            result.add(new ImmutablePair<>(currentLeft, currentRight));
+        }
     }
 
     private Collection<Pair<List<TextNode>, List<TextNode>>> reduceToChunks(Collection<Pair<List<TextNode>, List<TextNode>>> toChop, int chunkSize) {
@@ -64,20 +76,25 @@ public class ChunkCreator {
         List<TextNode> leftChunk = new ArrayList<>();
         List<TextNode> rightChunk = new ArrayList<>();
         for (Pair<List<TextNode>, List<TextNode>> pair : toChop) {
-            if (leftChunk.size() + pair.getLeft().size() < chunkSize
-                && rightChunk.size() + pair.getRight().size() < chunkSize) {
+            if (canBeAddedToCurrentChunk(chunkSize, leftChunk, rightChunk, pair)) {
                 leftChunk.addAll(pair.getLeft());
                 rightChunk.addAll(pair.getRight());
             } else {
                 result.add(new ImmutablePair<>(leftChunk, rightChunk));
-                leftChunk = new ArrayList<>();
-                rightChunk = new ArrayList<>();
+                rightChunk = new ArrayList<>(pair.getRight());
+                leftChunk = new ArrayList<>(pair.getLeft());
             }
         }
         if (!leftChunk.isEmpty() || !rightChunk.isEmpty()) {
             result.add(new ImmutablePair<>(leftChunk, rightChunk));
         }
         return result;
+    }
+
+    private boolean canBeAddedToCurrentChunk(int chunkSize, List<TextNode> leftChunk, List<TextNode> rightChunk,
+                                             Pair<List<TextNode>, List<TextNode>> pair) {
+        return leftChunk.size() + pair.getLeft().size() < chunkSize
+            && rightChunk.size() + pair.getRight().size() < chunkSize;
     }
 
 }
